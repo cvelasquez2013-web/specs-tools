@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reasonable Suspicion Process Guide — Spec's Family Corp</title>
+<style>
+  :root {
+    --red: #C8102E; --red-dark: #9e0d23; --charcoal: #1C1C1E; --slate: #3A3A3C;
+    --mid: #6B6B70; --border: #E5E5EA; --bg: #F7F7F8;
+    --green: #1E7B34; --green-bg: #EAF6ED; --green-border: #BFE3C8;
+    --redpath-bg: #FDEDEF; --redpath-border: #F5C2CA;
+    --gold-bg: #FFF8E1; --gold-border: #FFE082; --gold-text: #7B6012;
+    --blue: #1B5E8A; --blue-bg: #EAF3F9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--charcoal); min-height: 100vh; display: flex; flex-direction: column; }
+
+  header { background: var(--charcoal); border-bottom: 3px solid var(--red); padding: 0 20px; display: flex; align-items: center; justify-content: space-between; height: 58px; position: sticky; top: 0; z-index: 100; }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .logo { width: 32px; height: 32px; background: var(--red); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: white; flex-shrink: 0; }
+  .h-title { color: white; font-size: 13px; font-weight: 700; }
+  .h-sub { color: rgba(255,255,255,0.4); font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase; margin-top: 1px; }
+  .h-badge { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.13); border-radius: 20px; padding: 3px 10px; font-size: 10px; color: rgba(255,255,255,0.45); letter-spacing: 0.4px; white-space: nowrap; }
+
+  .main { flex: 1; max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; width: 100%; }
+
+  /* Safety banner */
+  .safety-banner { background: var(--charcoal); color: white; border-radius: 10px; padding: 10px 16px; font-size: 12px; display: flex; gap: 10px; align-items: center; margin-bottom: 18px; }
+  .safety-banner .warn { color: #FF8896; font-weight: 800; flex-shrink: 0; }
+  .safety-banner span:last-child { color: rgba(255,255,255,0.75); line-height: 1.45; }
+
+  /* Progress */
+  .progress { display: flex; gap: 5px; margin-bottom: 18px; }
+  .p-seg { flex: 1; height: 5px; border-radius: 3px; background: #E0E0E4; transition: background 0.3s; }
+  .p-seg.done { background: var(--red); }
+  .p-seg.green { background: var(--green); }
+  .p-seg.redp { background: var(--red-dark); }
+
+  /* Cards */
+  .card { background: white; border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 22px; margin-bottom: 16px; }
+  .phase-label { font-size: 10px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 8px; }
+  .phase-label.pre { color: var(--blue); }
+  .phase-label.conv { color: var(--red); }
+  .phase-label.green { color: var(--green); }
+  .phase-label.redp { color: var(--red-dark); }
+  .card h2 { font-size: 19px; font-weight: 800; color: var(--charcoal); letter-spacing: -0.3px; margin-bottom: 8px; line-height: 1.3; }
+  .card .lead { font-size: 13px; color: var(--mid); line-height: 1.6; margin-bottom: 16px; }
+
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 11px; font-weight: 700; color: var(--mid); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+  .field input[type=text], .field textarea { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 15px; font-family: inherit; color: var(--charcoal); background: var(--bg); outline: none; }
+  .field input:focus, .field textarea:focus { border-color: var(--red); background: white; }
+  .field textarea { min-height: 70px; resize: vertical; line-height: 1.5; }
+
+  .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .check-item { display: flex; align-items: center; gap: 9px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--slate); user-select: none; }
+  .check-item.checked { border-color: var(--red); background: #FDF2F4; color: var(--red-dark); font-weight: 600; }
+  .check-item input { accent-color: var(--red); width: 16px; height: 16px; flex-shrink: 0; }
+
+  .gate { background: var(--gold-bg); border: 1px solid var(--gold-border); border-radius: 8px; padding: 11px 14px; font-size: 12px; color: var(--gold-text); line-height: 1.55; margin-bottom: 14px; display: flex; gap: 8px; }
+  .gate strong { font-weight: 700; }
+
+  /* Script display */
+  .script-box { background: var(--charcoal); border-radius: 12px; padding: 20px 22px; margin: 14px 0; }
+  .script-label { font-size: 10px; font-weight: 800; color: #FF8896; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 10px; }
+  .script-text { font-size: 17px; line-height: 1.65; color: white; font-weight: 500; }
+  .script-note { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 12px; line-height: 1.5; }
+
+  /* Buttons */
+  .btn-row { display: flex; flex-direction: column; gap: 9px; margin-top: 16px; }
+  .btn { border: none; border-radius: 10px; padding: 14px 18px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 10px; transition: transform 0.05s; line-height: 1.4; }
+  .btn:active { transform: scale(0.99); }
+  .btn .arrow { margin-left: auto; opacity: 0.6; flex-shrink: 0; }
+  .btn-primary { background: var(--red); color: white; }
+  .btn-green { background: var(--green); color: white; }
+  .btn-redp { background: var(--red-dark); color: white; }
+  .btn-neutral { background: var(--bg); color: var(--slate); border: 1.5px solid var(--border); }
+  .btn-dark { background: var(--charcoal); color: white; }
+  .btn:disabled { background: #C7C7CC; color: #8E8E93; cursor: not-allowed; border: none; }
+
+  .counter-row { display: flex; gap: 8px; margin: 14px 0; }
+  .counter-chip { flex: 1; text-align: center; padding: 12px; border-radius: 9px; background: var(--bg); border: 1.5px solid var(--border); font-size: 13px; font-weight: 700; color: var(--mid); cursor: pointer; user-select: none; }
+  .counter-chip.done { background: var(--red-dark); border-color: var(--red-dark); color: white; }
+
+  /* Path indicator */
+  .path-tag { display: inline-block; border-radius: 20px; padding: 4px 13px; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; margin-bottom: 12px; }
+  .path-tag.green { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+  .path-tag.redp { background: var(--redpath-bg); color: var(--red-dark); border: 1px solid var(--redpath-border); }
+
+  /* Do not restrain */
+  .restrain-warning { background: var(--redpath-bg); border: 2px solid var(--red); border-radius: 12px; padding: 16px 18px; margin: 14px 0; }
+  .restrain-warning .rw-title { font-size: 13px; font-weight: 800; color: var(--red-dark); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+  .restrain-warning ul { margin-left: 18px; }
+  .restrain-warning li { font-size: 13px; color: var(--slate); line-height: 1.7; }
+
+  /* Log */
+  .log-toggle { font-size: 11px; color: var(--mid); cursor: pointer; text-align: center; margin-bottom: 14px; user-select: none; }
+  .log-panel { display: none; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .log-panel.show { display: block; }
+  .log-entry { font-size: 11px; color: var(--slate); padding: 5px 0; border-bottom: 1px solid var(--bg); display: flex; gap: 10px; }
+  .log-entry .lt { font-family: monospace; color: var(--mid); flex-shrink: 0; }
+
+  .undo-row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+  .undo-btn { background: none; border: none; font-size: 11px; color: var(--mid); cursor: pointer; text-decoration: underline; font-family: inherit; }
+
+  /* Record */
+  .record { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 26px; margin-bottom: 16px; }
+  .record h2 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .record .r-sub { font-size: 11px; color: var(--mid); margin-bottom: 18px; }
+  .r-section { margin-bottom: 16px; }
+  .r-section .r-label { font-size: 10px; font-weight: 800; color: var(--red); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; border-bottom: 1px solid var(--bg); padding-bottom: 4px; }
+  .r-row { font-size: 13px; color: var(--slate); line-height: 1.7; }
+  .r-row strong { color: var(--charcoal); }
+  .r-log-entry { font-size: 12px; color: var(--slate); padding: 4px 0; display: flex; gap: 12px; border-bottom: 1px dotted #EEE; }
+  .r-log-entry .lt { font-family: monospace; color: var(--mid); flex-shrink: 0; min-width: 72px; }
+  .sig-row { display: flex; gap: 30px; margin-top: 26px; }
+  .sig-block { flex: 1; }
+  .sig-line { border-bottom: 1.5px solid var(--charcoal); height: 34px; margin-bottom: 5px; }
+  .sig-label { font-size: 10px; color: var(--mid); text-transform: uppercase; letter-spacing: 0.6px; }
+
+  footer { border-top: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; background: white; gap: 8px; flex-wrap: wrap; }
+  footer span { font-size: 11px; color: var(--mid); }
+
+  @media (max-width: 560px) {
+    .h-badge { display: none; }
+    .check-grid { grid-template-columns: 1fr; }
+    .sig-row { flex-direction: column; gap: 20px; }
+  }
+
+  @media print {
+    header, .safety-banner, .progress, .log-toggle, .log-panel, .btn, .btn-row, footer, .no-print, .undo-row { display: none !important; }
+    body { background: white; }
+    .main { padding: 0; max-width: 100%; }
+    .record { border: none; box-shadow: none; padding: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">S</div>
+    <div>
+      <div class="h-title">Reasonable Suspicion Process Guide</div>
+      <div class="h-sub">Spec's Family Corp · Manager Process Tool</div>
+    </div>
+  </div>
+  <div class="h-badge">MANAGEMENT USE ONLY</div>
+</header>
+
+<main class="main">
+
+  <div class="safety-banner no-print">
+    <span class="warn">&#9888;</span>
+    <span><strong>Never</strong> physically restrain an employee, take their keys, or block their vehicle — at any point in this process. If an impaired employee drives away, call local law enforcement.</span>
+  </div>
+
+  <div class="progress" id="progress"></div>
+
+  <div class="log-toggle no-print" onclick="toggleLog()">&#9656; View step log (<span id="logCount">0</span> entries recorded)</div>
+  <div class="log-panel" id="logPanel"></div>
+
+  <div id="stage"></div>
+
+</main>
+
+<footer>
+  <span>Spec's Family Corp · Reasonable Suspicion Process · Management Use Only</span>
+  <span>This guide reflects company training and policy. It is not legal advice.</span>
+</footer>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const S = {
+  step: 'setup',
+  pathHistory: [],
+  log: [],
+  data: {
+    manager: '', witness: '', employee: '', location: '',
+    signs: [], otherObs: '', witnessObs: '',
+    dmContact: '', dmApproved: false,
+    refusalRepeats: 0,
+    policeCalled: false,
+    outcome: '', path: ''
+  },
+  stack: [] // for undo: snapshots of {step, dataJSON, logLen}
+};
+
+function now() {
+  const d = new Date();
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+function today() {
+  return new Date().toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function logEvent(text) {
+  S.log.push({ t: now(), text });
+  renderLog();
+}
+
+function pushState(nextStep) {
+  S.stack.push({ step: S.step, data: JSON.stringify(S.data), logLen: S.log.length });
+  S.step = nextStep;
+  render();
+}
+
+function undo() {
+  if (!S.stack.length) return;
+  const prev = S.stack.pop();
+  S.step = prev.step;
+  S.data = JSON.parse(prev.data);
+  S.log = S.log.slice(0, prev.logLen);
+  renderLog();
+  render();
+}
+
+function toggleLog() {
+  document.getElementById('logPanel').classList.toggle('show');
+}
+
+function renderLog() {
+  document.getElementById('logCount').textContent = S.log.length;
+  const p = document.getElementById('logPanel');
+  p.innerHTML = S.log.map(e => '<div class="log-entry"><span class="lt">' + e.t + '</span><span>' + e.text + '</span></div>').join('') || '<div class="log-entry">No steps recorded yet.</div>';
+}
+
+// ============================================================
+// PROGRESS BAR — 8 segments
+// ============================================================
+const PHASES = ['setup','observe','corroborate','notify','conversation','path','transport','record'];
+function renderProgress() {
+  const idx = {
+    setup: 0, observe: 1, corroborate: 2, notify: 3, conversation: 4,
+    'green-prep': 5, 'green-route': 5, 'red-script': 5, 'red-final': 5,
+    'green-return': 6, 'ride-outcome': 6, 'red-ride': 6, 'police': 6,
+    'notify-after': 6, record: 7
+  }[S.step] ?? 0;
+  const isGreen = S.data.path === 'green';
+  const isRed = S.data.path === 'red';
+  document.getElementById('progress').innerHTML = PHASES.map((p, i) => {
+    let cls = 'p-seg';
+    if (i < idx) cls += isGreen && i >= 5 ? ' green' : isRed && i >= 5 ? ' redp' : ' done';
+    if (i === idx) cls += isGreen && i >= 5 ? ' green' : isRed && i >= 5 ? ' redp' : ' done';
+    return '<div class="' + cls + '"></div>';
+  }).join('');
+}
+
+// ============================================================
+// SIGNS CHECKLIST
+// ============================================================
+const SIGNS = ["Slurred speech","Smell of alcohol","Erratic behavior","Stumbling / unsteady gait","Bloodshot or glassy eyes","Smell of marijuana","Drowsiness / nodding off","Aggressive or agitated behavior","Confusion / disorientation","Tremors or sweating"];
+
+function toggleSign(i) {
+  const sign = SIGNS[i];
+  const idx = S.data.signs.indexOf(sign);
+  if (idx >= 0) S.data.signs.splice(idx, 1); else S.data.signs.push(sign);
+  render();
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function esc(t) { return (t || '').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function name() { return esc(S.data.employee) || 'the employee'; }
+
+function render() {
+  renderProgress();
+  const stage = document.getElementById('stage');
+  const steps = {
+
+    // ─────────────────────────────────────────────────────────
+    setup: () => `
+      <div class="card">
+        <div class="phase-label pre">Before You Begin</div>
+        <h2>Incident Setup</h2>
+        <p class="lead">This guide will walk you through the reasonable suspicion process step by step, exactly as trained. Every step you take is automatically time-stamped and added to an incident record you can print or send to HR when finished.</p>
+        <div class="field"><label>Your Name (Manager Initiating)</label><input type="text" id="f-manager" value="${esc(S.data.manager)}" placeholder="First and last name"></div>
+        <div class="field"><label>Employee First Name</label><input type="text" id="f-employee" value="${esc(S.data.employee)}" placeholder="Used to personalize the scripts"></div>
+        <div class="field"><label>Location / Store / Facility</label><input type="text" id="f-location" value="${esc(S.data.location)}" placeholder="e.g. Store 90 Warehouse"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveSetup()">Begin the Process <span class="arrow">&#8594;</span></button>
+        </div>
+      </div>`,
+
+    // ─────────────────────────────────────────────────────────
+    observe: () => `
+      <div class="card">
+        <div class="phase-label pre">Step 1 of 4 — Before the Conversation</div>
+        <h2>OBSERVE — What are you seeing?</h2>
+        <p class="lead">Note the specific behaviors and signs the employee is showing. Check everything that applies — these become part of the documented record.</p>
+        <div class="check-grid">
+          ${SIGNS.map((s, i) => `<label class="check-item ${S.data.signs.includes(s) ? 'checked' : ''}" onclick="event.preventDefault(); toggleSign(${i})"><input type="checkbox" ${S.data.signs.includes(s) ? 'checked' : ''}> ${s}</label>`).join('')}
+        </div>
+        <div class="field"><label>Other observations — what you saw, smelled, or heard (in your own words)</label><textarea id="f-otherObs" placeholder="e.g. Found him asleep at the pick station at 9:40am. Strong smell of alcohol when he spoke. Knocked over a case of product.">${esc(S.data.otherObs)}</textarea></div>
+        <div class="gate"><span>&#9888;</span><span><strong>You must have at least one specific, observable sign.</strong> A hunch is not reasonable suspicion — documented observations are.</span></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btn-observe" onclick="saveObserve()">Observations Documented — Next Step <span class="arrow">&#8594;</span></button>
+        </div>
+      </div>`,
+
+    // ─────────────────────────────────────────────────────────
+    corroborate: () => `
+      <div class="card">
+        <div class="phase-label pre">Step 2 of 4 — Before the Conversation</div>
+        <h2>CORROBORATE — Get a second manager.</h2>
+        <p class="lead">A second manager or supervisor must independently observe the employee. This is critical for an objective position — and it is required before you proceed.</p>
+        <div class="field"><label>Second Manager / Witness Name</label><input type="text" id="f-witness" value="${esc(S.data.witness)}" placeholder="First and last name"></div>
+        <div class="field"><label>Witness observations (optional — their own words)</label><textarea id="f-witnessObs" placeholder="What the second manager saw, smelled, or heard.">${esc(S.data.witnessObs)}</textarea></div>
+        <div class="gate"><span>&#9888;</span><span><strong>Do not proceed alone.</strong> The conversation must happen with a managerial witness present. If your location has union-represented employees, a steward should be present if possible.</span></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveCorroborate()">Second Manager Has Observed — Next Step <span class="arrow">&#8594;</span></button>
+        </div>
+      </div>`,
+
+    // ─────────────────────────────────────────────────────────
+    notify: () => `
+      <div class="card">
+        <div class="phase-label pre">Step 3 of 4 — Before the Conversation</div>
+        <h2>NOTIFY — Contact your DM or HR first.</h2>
+        <p class="lead">You must contact your District Manager or HR <strong>before</strong> engaging the employee — and again after. Do not have the conversation until it is agreed to proceed with the reasonable suspicion process.</p>
+        <div class="field"><label>Who did you contact? (DM / HR name)</label><input type="text" id="f-dmContact" value="${esc(S.data.dmContact)}" placeholder="Name and role"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveNotify()">DM/HR Contacted &amp; Agreed to Proceed <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-neutral" onclick="logEvent('Process paused — DM/HR did not approve proceeding or could not be reached.'); alert('Do not proceed with the conversation until your DM or HR has agreed. Keep the employee in a safe, supervised, non-driving status while you wait.')">DM/HR Not Reached Yet — What Do I Do?</button>
+        </div>
+      </div>`,
+
+    // ─────────────────────────────────────────────────────────
+    conversation: () => `
+      <div class="card">
+        <div class="phase-label conv">Step 4 of 4 — The Conversation</div>
+        <h2>Have the conversation — with your witness present.</h2>
+        <p class="lead">Bring the employee to a private area with your managerial witness. Use this exact script. It is precise, non-accusatory, and consistent — do not improvise, do not soften it, do not accuse.</p>
+        <div class="script-box">
+          <div class="script-label">Say exactly this</div>
+          <div class="script-text">&ldquo;${name()}, we have reasonable suspicion that you are under the influence of drugs and/or alcohol. If we took you for a reasonable suspicion drug and alcohol screen, what will we find?&rdquo;</div>
+          <div class="script-note">Then stop talking. Let them answer.</div>
+        </div>
+        <p class="lead" style="margin-bottom:8px;"><strong>How does ${name()} respond?</strong></p>
+        <div class="btn-row">
+          <button class="btn btn-green" onclick="goGreen('conversation')">&#10003;&nbsp; Compliant — &ldquo;Nothing, I'm fine&rdquo; / &ldquo;I had a beer&rdquo; / &ldquo;I slipped up&rdquo; — and agrees to go <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-redp" onclick="goRed('conversation')">&#10007;&nbsp; Refuses — &ldquo;I'm not going to go in for a test&rdquo; <span class="arrow">&#8594;</span></button>
+        </div>
+        <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
+      </div>`,
+
+    // ─────────────────────────────────────────────────────────
+    'green-prep': () => `
+      <div class="card">
+        <div class="path-tag green">GREEN PATH — TESTING</div>
+        <h2>Transport to the testing facility.</h2>
+        <p class="lead">The employee has agreed to test. Three requirements before you leave:</p>
+        <div class="btn-row" style="margin-top:4px;">
+          <div class="gate" style="margin-bottom:6px;"><span>1.</span><span><strong>Take the Authorization to Treat form with you.</strong> The facility needs it.</span></div>
+          <div class="gate" style="margin-bottom:6px;"><span>2.</span><span><strong>Keep the associate CLOCKED IN.</strong> They remain on the clock through the entire testing process.</span></div>
+          <div class="gate" style="margin-bottom:6px;"><span>3.</span><span><strong>A manager drives.</strong> The employee does not drive themselves — to the facility or anywhere else.</span></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-green" onclick="logEvent('Departed for testing facility. Authorization to Treat form in hand; employee clocked in; manager driving.'); pushState('green-route')">En Route to Facility <span class="arrow">&#8594;</span></button>
+        </div>
+        <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
+      </div>`,
+
+    // ─────────────────────────────────────────────────────────
+    'green-route': () => `
+      <div class="card">
+        <div class="path-tag green">GREEN PATH — TESTING</div>
+        <h2>At the facility / en route.</h2>
+        <p class="lead">Stay with the employee through the process. One thing to watch for: <strong>if they refuse to continue at any point</strong> — in the car, in the waiting room, at the desk — that becomes a refusal and moves to the red path.</p>
+        <div class="btn-row">
+          <button class="btn btn-green" onclick="logEvent('Testing completed at facility.'); pushState('green-return')">&#10003;&nbsp; Testing Completed <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-redp" onclick="logEvent('Employee refused to continue while en route / at facility. Converting to RED path.'); goRed('green-route')">&#10007;&nbsp; They Refused to Continue — Convert to Red Path <span class="arrow">&#8594;</span></button>
+        </div>
+        <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
+      </div>`,
+
+    // ─────────────────────────────────────────────────────────
+    'green-return': () => `
+      <div class="card">
+        <div class="path-tag green">GREEN PATH — AFTER TESTING</div>
+        <h2>Back from the facility: clock out, get them home safely.</h2>
+        <p class="lead">Upon return from the facility, have ${name()} <strong>clock out</strong> — then arrange to get them home safely. They do not drive themselves home.</p>
+        <div class="btn-row">
+          <button class="btn btn-green" onclick="logEvent('Employee clocked out upon return from facility. Safe ride home arranged.'); S.data.outcome='Tested; clocked out; left safely with arranged transportation.'; pushState('notify-after')">&#10003;&nbsp; Clocked Out — Left Safely <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-redp" onclick="logEvent('Employee refused a ride and is attempting to drive home.'); pushState('police')">&#10007;&nbsp; They Refuse a Ride and Drive <span class="arrow">&#8594;</span></button>
+        </div>
+        <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
+      </div>`,
+
+    // ─────────────────────────────────────────────────────────
+    'red-script': () => `
+      <div class="card">
+        <div class="path-tag redp">RED PATH — REFUSAL</div>
+        <h2>The refusal script. Word for word.</h2>
+        <p class="lead">This script is not negotiable. It confirms the refusal is willful and that ${name()} understands the consequences. <strong>Repeat it 2–3 times.</strong> Tap each repetition as you state it.</p>
+        <div class="script-box">
+          <div class="script-label">Say exactly this — 2 to 3 times</div>
+          <div class="script-text">&ldquo;${name()}, refusing to submit to a reasonable suspicion drug and alcohol screen is a violation of company policy and can lead to termination. Are you still refusing to go?&rdquo;</div>
+        </div>
+        <div class="counter-row">
+          <div class="counter-chip ${S.data.refusalRepeats >= 1 ? 'done' : ''}" onclick="markRepeat(1)">Stated 1st time ${S.data.refusalRepeats >= 1 ? '&#10003;' : ''}</div>
+          <div class="counter-chip ${S.data.refusalRepeats >= 2 ? 'done' : ''}" onclick="markRepeat(2)">Stated 2nd time ${S.data.refusalRepeats >= 2 ? '&#10003;' : ''}</div>
+          <div class="counter-chip ${S.data.refusalRepeats >= 3 ? 'done' : ''}" onclick="markRepeat(3)">Stated 3rd time ${S.data.refusalRepeats >= 3 ? '&#10003;' : ''}</div>
+        </div>
+        <p class="lead" style="margin-bottom:8px;"><strong>After repeating — what is ${name()}'s final answer?</strong></p>
+        <div class="btn-row">
+          <button class="btn btn-green" onclick="logEvent('Employee changed their mind after refusal script — agreed to test. Converting to GREEN path.'); goGreen('red-script')">&#10003;&nbsp; &ldquo;No, I'll go.&rdquo; — Convert to Green Path <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-redp" id="btn-still-refusing" onclick="confirmRefusal()">&#10007;&nbsp; &ldquo;Yes.&rdquo; — Still Refusing <span class="arrow">&#8594;</span></button>
+        </div>
+        <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
+      </div>`,
+
+    // ─────────────────────────────────────────────────────────
+    'red-final': () => `
+      <div class="card">
+        <div class="path-tag redp">RED PATH — REFUSAL CONFIRMED</div>
+        <h2>Refusal confirmed. Now: get them home safely.</h2>
+        <p class="lead">The refusal is documented and willful. ${name()} is done working today. Your job now is the safety step — offer a safe ride home. <strong>They do not drive.</strong></p>
+        <div class="restrain-warning">
+          <div class="rw-title">&#9888; You cannot:</div>
+          <ul>
+            <li>Take their keys</li>
+            <li>Block their car</li>
+            <li>Physically stop or restrain them</li>
+          </ul>
+        </div>
+        <div class="script-box">
+          <div class="script-label">If they move toward driving, say exactly this</div>
+          <div class="script-text">&ldquo;We do not believe you are safe to drive. If you leave in your vehicle, we will have to notify the police.&rdquo;</div>
+        </div>
+        <p class="lead" style="margin-bottom:8px;"><strong>What happens?</strong></p>
+        <div class="btn-row">
+          <button class="btn btn-green" onclick="logEvent('Employee accepted safe transportation home / left safely without driving.'); S.data.outcome='Refused testing (documented, willful). Left safely with arranged transportation.'; pushState('notify-after')">&#10003;&nbsp; They Accept a Ride / Leave Safely <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-redp" onclick="logEvent('Employee was warned, refused a ride, and is driving away.'); pushState('police')">&#10007;&nbsp; They Refuse a Ride and Drive <span class="arrow">&#8594;</span></button>
+        </div>
+        <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
+      </div>`,
+
+    // ─────────────────────────────────────────────────────────
+    police: () => `
+      <div class="card">
+        <div class="phase-label redp">Final Risk — Company Liability</div>
+        <h2>Call local law enforcement. Now.</h2>
+        <p class="lead">An employee you reasonably suspect is impaired is driving. This is the company's largest liability exposure — and your required action is to report it immediately.</p>
+        <div class="script-box">
+          <div class="script-label">When you call, report</div>
+          <div class="script-text">A person you have reasonable suspicion of being under the influence of drugs and/or alcohol is driving. Give the vehicle description, plate if known, and direction of travel.</div>
+        </div>
+        <div class="gate"><span>&#9888;</span><span><strong>Then document:</strong> that they refused, that you warned them clearly, and that you contacted law enforcement. This tool is capturing those timestamps now.</span></div>
+        <div class="btn-row">
+          <button class="btn btn-dark" onclick="S.data.policeCalled=true; logEvent('Local law enforcement called — reported suspected impaired driver with vehicle description and direction of travel.'); S.data.outcome=(S.data.outcome||'Employee drove away after refusing a ride.') + ' Law enforcement notified.'; pushState('notify-after')">&#10003;&nbsp; Police Called — Continue <span class="arrow">&#8594;</span></button>
+        </div>
+        <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
+      </div>`,
+
+    // ─────────────────────────────────────────────────────────
+    'notify-after': () => `
+      <div class="card">
+        <div class="phase-label pre">Closing Step</div>
+        <h2>NOTIFY — Contact your DM or HR again.</h2>
+        <p class="lead">The training requires contact <strong>before and after</strong> engaging the employee. Call ${esc(S.data.dmContact) || 'your DM/HR contact'} now, report what happened, and confirm next steps (test results handling, pay, return-to-work, or termination process).</p>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="logEvent('DM/HR contacted AFTER the process — outcome reported and next steps confirmed.'); pushState('record')">&#10003;&nbsp; DM/HR Notified — Generate Incident Record <span class="arrow">&#8594;</span></button>
+        </div>
+        <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
+      </div>`,
+
+    // ─────────────────────────────────────────────────────────
+    record: () => {
+      const d = S.data;
+      return `
+      <div class="record" id="printRecord">
+        <h2>Reasonable Suspicion Incident Record</h2>
+        <div class="r-sub">Spec's Family Corp &middot; Generated ${today()} &middot; Management Use Only &middot; Route to HR</div>
+
+        <div class="r-section">
+          <div class="r-label">Incident Information</div>
+          <div class="r-row"><strong>Date:</strong> ${today()}</div>
+          <div class="r-row"><strong>Location:</strong> ${esc(d.location) || '—'}</div>
+          <div class="r-row"><strong>Initiating Manager:</strong> ${esc(d.manager) || '—'}</div>
+          <div class="r-row"><strong>Witnessing Manager:</strong> ${esc(d.witness) || '—'}</div>
+          <div class="r-row"><strong>Employee:</strong> ${esc(d.employee) || '—'}</div>
+          <div class="r-row"><strong>DM/HR Contact:</strong> ${esc(d.dmContact) || '—'}</div>
+          <div class="r-row"><strong>Path Taken:</strong> ${d.path === 'green' ? 'Green — Agreed to Testing' : d.path === 'red' ? 'Red — Refusal' : d.path || '—'}${S.pathHistory.length > 1 ? ' (conversions: ' + S.pathHistory.join(' → ') + ')' : ''}</div>
+          <div class="r-row"><strong>Refusal script repetitions:</strong> ${d.refusalRepeats > 0 ? d.refusalRepeats : 'N/A'}</div>
+          <div class="r-row"><strong>Law enforcement contacted:</strong> ${d.policeCalled ? 'YES' : 'No'}</div>
+        </div>
+
+        <div class="r-section">
+          <div class="r-label">Documented Observations (Initiating Manager)</div>
+          <div class="r-row">${d.signs.length ? d.signs.join('; ') : '—'}</div>
+          ${d.otherObs ? '<div class="r-row" style="margin-top:4px;"><strong>Additional notes:</strong> ' + esc(d.otherObs) + '</div>' : ''}
+        </div>
+
+        ${d.witnessObs ? `<div class="r-section">
+          <div class="r-label">Witness Observations</div>
+          <div class="r-row">${esc(d.witnessObs)}</div>
+        </div>` : ''}
+
+        <div class="r-section">
+          <div class="r-label">Outcome</div>
+          <div class="r-row">${esc(d.outcome) || '—'}</div>
+        </div>
+
+        <div class="r-section">
+          <div class="r-label">Time-Stamped Step Log</div>
+          ${S.log.map(e => '<div class="r-log-entry"><span class="lt">' + e.t + '</span><span>' + e.text + '</span></div>').join('')}
+        </div>
+
+        <div class="sig-row">
+          <div class="sig-block"><div class="sig-line"></div><div class="sig-label">Initiating Manager Signature / Date</div></div>
+          <div class="sig-block"><div class="sig-line"></div><div class="sig-label">Witnessing Manager Signature / Date</div></div>
+        </div>
+      </div>
+
+      <div class="btn-row no-print">
+        <button class="btn btn-dark" onclick="window.print()">&#128424;&nbsp; Print This Record</button>
+        <button class="btn btn-primary" onclick="copyRecord()">&#128203;&nbsp; Copy Record as Text (for email to HR)</button>
+        <button class="btn btn-neutral" onclick="if(confirm('Start a new incident? The current record will be cleared.')) location.reload()">Start a New Incident</button>
+      </div>`;
+    }
+  };
+
+  stage.innerHTML = steps[S.step] ? steps[S.step]() : '<div class="card">Unknown step.</div>';
+}
+
+// ============================================================
+// STEP HANDLERS
+// ============================================================
+function saveSetup() {
+  S.data.manager = document.getElementById('f-manager').value.trim();
+  S.data.employee = document.getElementById('f-employee').value.trim();
+  S.data.location = document.getElementById('f-location').value.trim();
+  if (!S.data.manager || !S.data.employee) { alert('Enter your name and the employee\'s first name to begin.'); return; }
+  logEvent('Process started by ' + S.data.manager + ' regarding ' + S.data.employee + (S.data.location ? ' at ' + S.data.location : '') + '.');
+  pushState('observe');
+}
+
+function saveObserve() {
+  S.data.otherObs = document.getElementById('f-otherObs').value.trim();
+  if (S.data.signs.length === 0 && !S.data.otherObs) { alert('Document at least one specific observable sign before proceeding.'); return; }
+  logEvent('Observations documented: ' + (S.data.signs.join('; ') || 'see notes') + (S.data.otherObs ? '. Notes: ' + S.data.otherObs : ''));
+  pushState('corroborate');
+}
+
+function saveCorroborate() {
+  S.data.witness = document.getElementById('f-witness').value.trim();
+  S.data.witnessObs = document.getElementById('f-witnessObs').value.trim();
+  if (!S.data.witness) { alert('A second manager must observe before you proceed. Enter their name.'); return; }
+  logEvent('Second manager corroborated: ' + S.data.witness + ' independently observed the employee.' + (S.data.witnessObs ? ' Witness notes: ' + S.data.witnessObs : ''));
+  pushState('notify');
+}
+
+function saveNotify() {
+  S.data.dmContact = document.getElementById('f-dmContact').value.trim();
+  if (!S.data.dmContact) { alert('Enter who you contacted (DM or HR) before proceeding.'); return; }
+  logEvent('DM/HR contacted BEFORE the conversation: ' + S.data.dmContact + ' — agreed to proceed with the reasonable suspicion process.');
+  pushState('conversation');
+}
+
+function goGreen(from) {
+  if (from === 'conversation') logEvent('Conversation held with witness present. Employee response: compliant — agreed to testing.');
+  S.data.path = 'green';
+  S.pathHistory.push('GREEN');
+  pushState('green-prep');
+}
+
+function goRed(from) {
+  if (from === 'conversation') logEvent('Conversation held with witness present. Employee response: refused testing.');
+  S.data.path = 'red';
+  S.pathHistory.push('RED');
+  S.data.refusalRepeats = 0;
+  pushState('red-script');
+}
+
+function markRepeat(n) {
+  if (n === S.data.refusalRepeats + 1) {
+    S.data.refusalRepeats = n;
+    logEvent('Refusal script stated to employee — repetition ' + n + '.');
+    render();
+  }
+}
+
+function confirmRefusal() {
+  if (S.data.refusalRepeats < 2) { alert('State the refusal script at least 2 times before confirming the refusal. Tap each repetition as you say it.'); return; }
+  logEvent('Employee confirmed final refusal after ' + S.data.refusalRepeats + ' repetitions of the refusal script. Refusal is willful and documented.');
+  pushState('red-final');
+}
+
+function copyRecord() {
+  const d = S.data;
+  let txt = 'REASONABLE SUSPICION INCIDENT RECORD\n';
+  txt += 'Spec\'s Family Corp — Management Use Only — Route to HR\n';
+  txt += '='.repeat(50) + '\n\n';
+  txt += 'Date: ' + today() + '\n';
+  txt += 'Location: ' + (d.location || '—') + '\n';
+  txt += 'Initiating Manager: ' + (d.manager || '—') + '\n';
+  txt += 'Witnessing Manager: ' + (d.witness || '—') + '\n';
+  txt += 'Employee: ' + (d.employee || '—') + '\n';
+  txt += 'DM/HR Contact: ' + (d.dmContact || '—') + '\n';
+  txt += 'Path: ' + (S.pathHistory.join(' -> ') || '—') + '\n';
+  txt += 'Refusal script repetitions: ' + (d.refusalRepeats || 'N/A') + '\n';
+  txt += 'Law enforcement contacted: ' + (d.policeCalled ? 'YES' : 'No') + '\n\n';
+  txt += 'OBSERVATIONS (Initiating Manager):\n' + (d.signs.join('; ') || '—') + '\n';
+  if (d.otherObs) txt += 'Notes: ' + d.otherObs + '\n';
+  if (d.witnessObs) txt += '\nWITNESS OBSERVATIONS:\n' + d.witnessObs + '\n';
+  txt += '\nOUTCOME:\n' + (d.outcome || '—') + '\n\n';
+  txt += 'TIME-STAMPED STEP LOG:\n';
+  S.log.forEach(e => { txt += '[' + e.t + '] ' + e.text + '\n'; });
+  navigator.clipboard.writeText(txt).then(() => alert('Record copied. Paste it into an email to HR.'), () => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    alert('Record copied. Paste it into an email to HR.');
+  });
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => { renderLog(); render(); });
+</script>
+</body>
+</html>
