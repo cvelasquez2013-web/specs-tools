@@ -94,6 +94,13 @@
   .restrain-warning ul { margin-left: 18px; }
   .restrain-warning li { font-size: 13px; color: var(--slate); line-height: 1.7; }
 
+  /* Safe travel options box */
+  .safe-travel { background: var(--green-bg); border: 1px solid var(--green-border); border-radius: 10px; padding: 14px 16px; margin: 14px 0; }
+  .safe-travel .st-title { font-size: 12px; font-weight: 800; color: var(--green); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+  .safe-travel ul { margin-left: 18px; margin-bottom: 0; }
+  .safe-travel li { font-size: 13px; color: var(--slate); line-height: 1.6; margin-bottom: 3px; }
+  .safe-travel .st-note { font-size: 11px; color: var(--mid); margin-top: 8px; line-height: 1.5; font-style: italic; }
+
   /* Log */
   .log-toggle { font-size: 11px; color: var(--mid); cursor: pointer; text-align: center; margin-bottom: 14px; user-select: none; }
   .log-panel { display: none; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
@@ -184,6 +191,7 @@ const S = {
     dmContact: '', dmApproved: false,
     refusalRepeats: 0,
     policeCalled: false,
+    ahLocation: '', ahTime: '', afterHours: false,
     outcome: '', path: ''
   },
   stack: [] // for undo: snapshots of {step, dataJSON, logLen}
@@ -235,6 +243,7 @@ const PHASES = ['setup','observe','corroborate','notify','conversation','path','
 function renderProgress() {
   const idx = {
     setup: 0, observe: 1, corroborate: 2, notify: 3, conversation: 4,
+    'facility-status': 5, 'after-hours': 5,
     'green-prep': 5, 'green-route': 5, 'red-script': 5, 'red-final': 5,
     'green-return': 6, 'ride-outcome': 6, 'red-ride': 6, 'police': 6,
     'notify-after': 6, record: 7
@@ -349,6 +358,50 @@ function render() {
       </div>`,
 
     // ─────────────────────────────────────────────────────────
+    'facility-status': () => `
+      <div class="card">
+        <div class="path-tag green">GREEN PATH — TESTING</div>
+        <h2>Is the testing facility open and available right now?</h2>
+        <p class="lead">${name()} has agreed to test. Before you transport, confirm the facility is open and able to receive them. This determines whether you test now or arrange morning testing.</p>
+        <div class="btn-row">
+          <button class="btn btn-green" onclick="logEvent('Testing facility confirmed open and available. Proceeding to transport.'); pushState('green-prep')">&#10003;&nbsp; Yes — Facility Is Open Now <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-neutral" onclick="logEvent('Testing facility closed / after-hours. Proceeding to after-hours protocol.'); pushState('after-hours')">&#128274;&nbsp; No — Facility Is Closed / After-Hours <span class="arrow">&#8594;</span></button>
+        </div>
+        <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
+      </div>`,
+
+    // ─────────────────────────────────────────────────────────
+    'after-hours': () => `
+      <div class="card">
+        <div class="path-tag green">GREEN PATH — AFTER-HOURS PROTOCOL</div>
+        <h2>Facility closed: send home safely, test first thing in the morning.</h2>
+        <p class="lead">The facility is unavailable, but ${name()} still cannot remain at work and cannot drive themselves. Follow this protocol exactly:</p>
+        <div class="gate" style="margin-bottom:6px;"><span>1.</span><span><strong>Provide safe transportation home now.</strong> Offer a ride or a company-reimbursed rideshare (see safe-travel options below). The employee does not drive.</span></div>
+        <div class="gate" style="margin-bottom:6px;"><span>2.</span><span><strong>Instruct the employee to report first thing in the morning</strong> to the testing location you assign. Be specific about where and when.</span></div>
+        <div class="gate" style="margin-bottom:6px;"><span>3.</span><span><strong>The employee must provide proof of testing before returning to work.</strong> They do not resume their duties until that proof is received.</span></div>
+
+        <div class="field" style="margin-top:14px;"><label>Assigned morning testing location</label><input type="text" id="f-ahLocation" value="${esc(S.data.ahLocation)}" placeholder="e.g. Concentra, 1200 Main St — name and address"></div>
+        <div class="field"><label>Assigned report time</label><input type="text" id="f-ahTime" value="${esc(S.data.ahTime)}" placeholder="e.g. 7:00 AM, before any shift"></div>
+
+        <div class="safe-travel">
+          <div class="st-title">&#128663; Safe travel home — your options</div>
+          <ul>
+            <li>Offer the employee a ride home (manager or designated driver), or</li>
+            <li>Offer to arrange and pay for a rideshare — the company reimburses the manager for the cost.</li>
+          </ul>
+          <div class="st-note">The employee must not drive. If they refuse safe transport and attempt to drive, follow the warning-and-police steps.</div>
+        </div>
+
+        <p class="lead" style="margin-bottom:8px; margin-top:14px;"><strong>Does ${name()} agree to this and leave safely?</strong></p>
+        <div class="btn-row">
+          <button class="btn btn-green" onclick="saveAfterHours('safe')">&#10003;&nbsp; Agrees — Sent Home Safely With Morning Instructions <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-redp" onclick="saveAfterHours('refused')">&#10007;&nbsp; Refuses to Test in the Morning — Treat as Refusal <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-redp" onclick="saveAfterHours('drives')">&#10007;&nbsp; Refuses a Ride and Drives <span class="arrow">&#8594;</span></button>
+        </div>
+        <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
+      </div>`,
+
+    // ─────────────────────────────────────────────────────────
     'green-prep': () => `
       <div class="card">
         <div class="path-tag green">GREEN PATH — TESTING</div>
@@ -384,6 +437,13 @@ function render() {
         <div class="path-tag green">GREEN PATH — AFTER TESTING</div>
         <h2>Back from the facility: clock out, get them home safely.</h2>
         <p class="lead">Upon return from the facility, have ${name()} <strong>clock out</strong> — then arrange to get them home safely. They do not drive themselves home.</p>
+        <div class="safe-travel">
+          <div class="st-title">&#128663; Safe travel home — your options</div>
+          <ul>
+            <li>Offer the employee a ride home (manager or designated driver), or</li>
+            <li>Offer to arrange and pay for a rideshare — the company reimburses the manager for the cost.</li>
+          </ul>
+        </div>
         <div class="btn-row">
           <button class="btn btn-green" onclick="logEvent('Employee clocked out upon return from facility. Safe ride home arranged.'); S.data.outcome='Tested; clocked out; left safely with arranged transportation.'; pushState('notify-after')">&#10003;&nbsp; Clocked Out — Left Safely <span class="arrow">&#8594;</span></button>
           <button class="btn btn-redp" onclick="logEvent('Employee refused a ride and is attempting to drive home.'); pushState('police')">&#10007;&nbsp; They Refuse a Ride and Drive <span class="arrow">&#8594;</span></button>
@@ -426,6 +486,13 @@ function render() {
             <li>Take their keys</li>
             <li>Block their car</li>
             <li>Physically stop or restrain them</li>
+          </ul>
+        </div>
+        <div class="safe-travel">
+          <div class="st-title">&#128663; Safe travel home — your options</div>
+          <ul>
+            <li>Offer the employee a ride home (manager or designated driver), or</li>
+            <li>Offer to arrange and pay for a rideshare — the company reimburses the manager for the cost.</li>
           </ul>
         </div>
         <div class="script-box">
@@ -488,6 +555,7 @@ function render() {
           <div class="r-row"><strong>Path Taken:</strong> ${d.path === 'green' ? 'Green — Agreed to Testing' : d.path === 'red' ? 'Red — Refusal' : d.path || '—'}${S.pathHistory.length > 1 ? ' (conversions: ' + S.pathHistory.join(' → ') + ')' : ''}</div>
           <div class="r-row"><strong>Refusal script repetitions:</strong> ${d.refusalRepeats > 0 ? d.refusalRepeats : 'N/A'}</div>
           <div class="r-row"><strong>Law enforcement contacted:</strong> ${d.policeCalled ? 'YES' : 'No'}</div>
+          ${d.afterHours ? '<div class="r-row"><strong>After-hours protocol:</strong> Facility closed. Assigned testing at ' + esc(d.ahLocation) + ' at ' + esc(d.ahTime) + '; proof of testing required before return to work.</div>' : ''}
         </div>
 
         <div class="r-section">
@@ -566,7 +634,7 @@ function goGreen(from) {
   if (from === 'conversation') logEvent('Conversation held with witness present. Employee response: compliant — agreed to testing.');
   S.data.path = 'green';
   S.pathHistory.push('GREEN');
-  pushState('green-prep');
+  pushState('facility-status');
 }
 
 function goRed(from) {
@@ -575,6 +643,25 @@ function goRed(from) {
   S.pathHistory.push('RED');
   S.data.refusalRepeats = 0;
   pushState('red-script');
+}
+
+function saveAfterHours(result) {
+  S.data.ahLocation = document.getElementById('f-ahLocation').value.trim();
+  S.data.ahTime = document.getElementById('f-ahTime').value.trim();
+  if (!S.data.ahLocation || !S.data.ahTime) { alert('Enter the assigned morning testing location and report time before proceeding.'); return; }
+  S.data.afterHours = true;
+  const instr = 'After-hours protocol: facility closed. Employee instructed to report to ' + S.data.ahLocation + ' at ' + S.data.ahTime + ' and provide proof of testing before returning to work.';
+  if (result === 'safe') {
+    logEvent(instr + ' Employee sent home safely with arranged transportation.');
+    S.data.outcome = 'After-hours: facility closed. Sent home safely. Instructed to test at ' + S.data.ahLocation + ' at ' + S.data.ahTime + '; must provide proof of testing before returning to work.';
+    pushState('notify-after');
+  } else if (result === 'refused') {
+    logEvent(instr + ' Employee refused to agree to morning testing — converting to refusal (RED) path.');
+    goRed('after-hours');
+  } else if (result === 'drives') {
+    logEvent(instr + ' Employee refused a ride and is driving away.');
+    pushState('police');
+  }
 }
 
 function markRepeat(n) {
@@ -604,7 +691,9 @@ function copyRecord() {
   txt += 'DM/HR Contact: ' + (d.dmContact || '—') + '\n';
   txt += 'Path: ' + (S.pathHistory.join(' -> ') || '—') + '\n';
   txt += 'Refusal script repetitions: ' + (d.refusalRepeats || 'N/A') + '\n';
-  txt += 'Law enforcement contacted: ' + (d.policeCalled ? 'YES' : 'No') + '\n\n';
+  txt += 'Law enforcement contacted: ' + (d.policeCalled ? 'YES' : 'No') + '\n';
+  if (d.afterHours) txt += 'After-hours protocol: Facility closed. Assigned testing at ' + d.ahLocation + ' at ' + d.ahTime + '; proof of testing required before return to work.\n';
+  txt += '\n';
   txt += 'OBSERVATIONS (Initiating Manager):\n' + (d.signs.join('; ') || '—') + '\n';
   if (d.otherObs) txt += 'Notes: ' + d.otherObs + '\n';
   if (d.witnessObs) txt += '\nWITNESS OBSERVATIONS:\n' + d.witnessObs + '\n';
