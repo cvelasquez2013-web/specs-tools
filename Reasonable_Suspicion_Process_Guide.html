@@ -52,6 +52,22 @@
   .field input[type=text], .field textarea { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 15px; font-family: inherit; color: var(--charcoal); background: var(--bg); outline: none; }
   .field input:focus, .field textarea:focus { border-color: var(--red); background: white; }
   .field textarea { min-height: 70px; resize: vertical; line-height: 1.5; }
+  .field select { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 15px; font-family: inherit; color: var(--charcoal); background: var(--bg); outline: none; }
+  .field select:focus { border-color: var(--red); background: white; }
+
+  .site-detail { background: var(--green-bg); border: 1px solid var(--green-border); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--slate); line-height: 1.6; margin-bottom: 14px; }
+  .site-detail strong { color: var(--charcoal); }
+  .near-head { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--mid); margin: 4px 0 8px; }
+  .site-card { border: 2px solid var(--border, #d8d8d8); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; cursor: pointer; background: #fff; font-size: 14px; line-height: 1.5; }
+  .site-card:hover, .site-card:focus { border-color: var(--green-border); outline: none; }
+  .site-card.on { border-color: var(--green-border); background: var(--green-bg); }
+  .site-card .sc-top { display: flex; justify-content: space-between; gap: 10px; }
+  .site-card .sc-mi { font-weight: 700; white-space: nowrap; }
+  .site-card .sc-sub { font-size: 12.5px; color: var(--mid); }
+
+  .subject-box { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; }
+  .subject-box .sb-label { font-size: 10px; font-weight: 800; color: var(--mid); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 4px; }
+  .subject-box .sb-text { font-size: 13px; color: var(--charcoal); word-break: break-word; line-height: 1.5; }
 
   .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
   .check-item { display: flex; align-items: center; gap: 9px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--slate); user-select: none; }
@@ -107,6 +123,8 @@
   .log-panel.show { display: block; }
   .log-entry { font-size: 11px; color: var(--slate); padding: 5px 0; border-bottom: 1px solid var(--bg); display: flex; gap: 10px; }
   .log-entry .lt { font-family: monospace; color: var(--mid); flex-shrink: 0; }
+  .log-entry.rev span:last-child { color: var(--mid); text-decoration: line-through; }
+  .log-entry.rev-note { background: var(--gold-bg); font-weight: 700; }
 
   .undo-row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
   .undo-btn { background: none; border: none; font-size: 11px; color: var(--mid); cursor: pointer; text-decoration: underline; font-family: inherit; }
@@ -136,7 +154,7 @@
   }
 
   @media print {
-    header, .safety-banner, .progress, .log-toggle, .log-panel, .btn, .btn-row, footer, .no-print, .undo-row { display: none !important; }
+    header, .safety-banner, .progress, .log-toggle, .log-panel, .btn, .btn-row, footer, .no-print, .undo-row, .subject-box { display: none !important; }
     body { background: white; }
     .main { padding: 0; max-width: 100%; }
     .record { border: none; box-shadow: none; padding: 10px; }
@@ -186,13 +204,14 @@ const S = {
   pathHistory: [],
   log: [],
   data: {
-    manager: '', witness: '', employee: '', location: '',
+    manager: '', witness: '', employee: '', employeeLast: '', employeeId: '', location: '',
     signs: [], otherObs: '', witnessObs: '',
     dmContact: '', dmApproved: false,
     refusalRepeats: 0,
     policeCalled: false,
-    ahLocation: '', ahTime: '', afterHours: false,
-    outcome: '', path: ''
+    siteStore: '', siteStoreOther: '', siteStoreTouched: false, siteChoice: '', siteOtherName: '', siteOtherPhone: '', siteOtherApprover: '',
+    ahTime: '', afterHours: false,
+    outcome: '', path: '', generatedISO: ''
   },
   stack: [] // for undo: snapshots of {step, dataJSON, logLen}
 };
@@ -204,26 +223,83 @@ function now() {
 function today() {
   return new Date().toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
 }
-
-function logEvent(text) {
-  S.log.push({ t: now(), text });
-  renderLog();
+// Full date + time + time zone for the formal record, e.g. "10/26/2026 2:32:39 PM CDT"
+function fmtDT(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }) + ' ' +
+         d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short' });
+}
+function fmtDateLong(iso) {
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-function pushState(nextStep) {
-  S.stack.push({ step: S.step, data: JSON.stringify(S.data), logLen: S.log.length });
+function logEvent(text) {
+  S.log.push({ t: now(), iso: new Date().toISOString(), text });
+  renderLog();
+  persist();
+}
+
+function snapshot() {
+  return { step: S.step, data: JSON.stringify(S.data), pathHistory: JSON.stringify(S.pathHistory), logLen: S.log.length };
+}
+
+// snap (optional): a snapshot taken before this step changed the data, so Undo restores the true prior state.
+function pushState(nextStep, snap) {
+  S.stack.push(snap || snapshot());
   S.step = nextStep;
   render();
 }
 
+const STEP_LABELS = {
+  setup: 'Incident Setup', observe: 'Observe', corroborate: 'Corroborate', notify: 'Notify (before the conversation)',
+  conversation: 'The Conversation', 'facility-status': 'Select Testing Facility', 'after-hours': 'Facility Closed — Schedule Next Day',
+  'green-prep': 'Transport to Facility', 'green-route': 'At the Facility / En Route', 'green-return': 'Return and Clock Out',
+  'red-script': 'Refusal Script', 'red-final': 'Refusal Confirmed', police: 'Call Law Enforcement',
+  'notify-after': 'Notify (after the process)', record: 'Incident Record'
+};
+
+// Undo never deletes anything from the log. Entries from the reversed step stay on the record,
+// are marked [Reversed], and a time-stamped STEP REVERSED line is added.
 function undo() {
   if (!S.stack.length) return;
   const prev = S.stack.pop();
+  const from = S.step;
+  let n = 0;
+  for (let i = prev.logLen; i < S.log.length; i++) {
+    const e = S.log[i];
+    if (!e.reversed && !e.reversal) { e.reversed = true; n++; }
+  }
   S.step = prev.step;
   S.data = JSON.parse(prev.data);
-  S.log = S.log.slice(0, prev.logLen);
+  S.pathHistory = JSON.parse(prev.pathHistory);
+  S.log.push({
+    t: now(), iso: new Date().toISOString(), reversal: true,
+    text: 'STEP REVERSED — ' + (S.data.manager || 'Manager') + ' moved back from "' + (STEP_LABELS[from] || from) + '" to "' + (STEP_LABELS[prev.step] || prev.step) + '". ' +
+          (n ? n + (n === 1 ? ' earlier entry was' : ' earlier entries were') + ' marked reversed and kept on the record.' : 'No log entries were affected.')
+  });
   renderLog();
   render();
+}
+
+// ============================================================
+// AUTOSAVE — keeps an unfinished incident across a page refresh.
+// sessionStorage: stays in this browser tab only and is cleared when the tab closes.
+// ============================================================
+const STORE_KEY = 'rsGuideIncident';
+let PENDING = null;
+
+function persist() {
+  if (S.step === 'setup' && !S.log.length) return;
+  try {
+    sessionStorage.setItem(STORE_KEY, JSON.stringify({ step: S.step, pathHistory: S.pathHistory, log: S.log, data: S.data, stack: S.stack }));
+  } catch (e) {}
+}
+function loadSaved() {
+  try { const raw = sessionStorage.getItem(STORE_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+}
+function clearSaved() {
+  try { sessionStorage.removeItem(STORE_KEY); } catch (e) {}
 }
 
 function toggleLog() {
@@ -233,7 +309,7 @@ function toggleLog() {
 function renderLog() {
   document.getElementById('logCount').textContent = S.log.length;
   const p = document.getElementById('logPanel');
-  p.innerHTML = S.log.map(e => '<div class="log-entry"><span class="lt">' + e.t + '</span><span>' + e.text + '</span></div>').join('') || '<div class="log-entry">No steps recorded yet.</div>';
+  p.innerHTML = S.log.map(e => '<div class="log-entry' + (e.reversed ? ' rev' : '') + (e.reversal ? ' rev-note' : '') + '"><span class="lt">' + e.t + '</span><span>' + (e.reversed ? '[Reversed] ' : '') + esc(e.text) + '</span></div>').join('') || '<div class="log-entry">No steps recorded yet.</div>';
 }
 
 // ============================================================
@@ -273,8 +349,261 @@ function toggleSign(i) {
 // ============================================================
 // RENDER
 // ============================================================
-function esc(t) { return (t || '').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(t) {
+  return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 function name() { return esc(S.data.employee) || 'the employee'; }
+
+// ============================================================
+// APPROVED TESTING SITES
+// ============================================================
+// Every Concentra and every CareNow location is approved (see BRAND_OPTIONS below).
+// APPROVED_SITES holds the specific locations managers can pick from, with phone and hours.
+//
+// To add a provider, copy one line in APPROVED_SITES and change it:
+//   id:      short unique key, no spaces
+//   name:    provider / brand
+//   address: street, city, state, zip
+//   phone:   front-desk number(s), so the manager can confirm the site is open
+//   hours:   posted hours
+//   area:    city, used to group the dropdown
+// To show a store's nearest sites first, add it to STORE_NEAREST: 'store number': [['site id', miles], ...]
+const APPROVED_SITES = [
+  { id: "matagorda-regional-medical-center-104-7th-st-bay-city", name: "Matagorda Regional Medical Center", address: "104 7th St, Bay City, TX 77414", phone: "979-245-6383", hours: "Mon-Fri 8am-7pm, Sat 8am-6pm", area: "Bay City" },
+  { id: "afc-6040-garth-rd-ste-10-baytown", name: "AFC", address: "6040 Garth Rd Ste 10, Baytown, TX 77521", phone: "281-720-7806", hours: "Sun-Sat 8am-8pm", area: "Baytown" },
+  { id: "nextlevel-7710-garth-rd-ste-a-baytown", name: "NextLevel", address: "7710 Garth Rd Ste A, Baytown, TX 77627", phone: "713-439-7995", hours: "Sun-Sat 9am-9pm", area: "Baytown" },
+  { id: "carenow-3150-gulf-fwy-s-dickinson", name: "CareNow", address: "3150 Gulf Fwy S, Dickinson, TX 77539", phone: "281-534-0001", hours: "Sun 8am-5pm, Mon-Fri 8am-9pm, Sat 8am-8pm", area: "Dickinson" },
+  { id: "concentra-1002-abc-ave-ste-600-freeport", name: "Concentra", address: "1002 Abc Ave Ste 600, Freeport, TX 77541", phone: "979-233-6571", hours: "Mon-Fri 8am-5pm", area: "Freeport" },
+  { id: "carenow-1729-s-friendswood-dr-friendswood", name: "CareNow", address: "1729 S Friendswood Dr, Friendswood, TX 77546", phone: "281-402-1930", hours: "Sun 8am-5pm, Mon-Fri 8am-9pm, Sat 8am-8pm", area: "Friendswood" },
+  { id: "affinity-2808-61st-st-ste-200-galveston", name: "Affinity", address: "2808 61st St Ste 200, Galveston, TX 77551", phone: "281-886-8964", hours: "Sun 9am-5pm, Mon-Fri 8am-8pm, Sat 9am-5pm", area: "Galveston" },
+  { id: "west-isle-2027-61st-st-galveston", name: "West Isle", address: "2027 61st St, Galveston, TX 77551", phone: "409-744-9800", hours: "Sun-Sat 8am-10pm", area: "Galveston" },
+  { id: "afc-107-yale-st-ste-200-houston", name: "AFC", address: "107 Yale St Ste 200, Houston, TX 77007", phone: "713-861-6060", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-5pm", area: "Houston" },
+  { id: "afc-2402-bay-area-blvd-ste-m-houston", name: "AFC", address: "2402 Bay Area Blvd Ste M, Houston, TX", phone: "832-310-1368 / 832-650-0604", hours: "Sun-Sat 8am-8pm", area: "Houston" },
+  { id: "afc-5568-weslayan-st-houston", name: "AFC", address: "5568 Weslayan St, Houston, TX 77005", phone: "713-666-7050", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Houston" },
+  { id: "carenow-102-w-11th-st-houston", name: "CareNow", address: "102 W 11th St, Houston, TX 77008", phone: "832-539-4707", hours: "Sun-Sat 8am-8pm", area: "Houston" },
+  { id: "carenow-14045-memorial-dr-houston", name: "CareNow", address: "14045 Memorial Dr, Houston, TX", phone: "832-548-4410", hours: "Sun-Sat 8am-8pm", area: "Houston" },
+  { id: "carenow-1917-w-gray-st-houston", name: "CareNow", address: "1917 W Gray St, Houston, TX 77019", phone: "832-260-0650", hours: "Sun-Sat 8am-8pm", area: "Houston" },
+  { id: "carenow-2707-milam-st-houston", name: "CareNow", address: "2707 Milam St, Houston, TX 77006", phone: "832-632-7135", hours: "Sun-Sat 8am-8pm", area: "Houston" },
+  { id: "concentra-12345-katy-fwy-houston", name: "Concentra", address: "12345 Katy Fwy, Houston, TX 77079", phone: "281-679-5600", hours: "Mon-Fri 8am-8pm, Sat 9am-4pm", area: "Houston" },
+  { id: "concentra-6545-southwest-fwy-houston", name: "Concentra", address: "6545 Southwest Fwy, Houston, TX 77074", phone: "713-995-6998 / 713-995-6580", hours: "Mon-Fri 8am-5pm", area: "Houston" },
+  { id: "concentra-8505-gulf-fwy-ste-f-houston", name: "Concentra", address: "8505 Gulf Fwy Ste F, Houston, TX 77017", phone: "713-944-4582", hours: "Mon-Fri 8am-5pm", area: "Houston" },
+  { id: "concentra-8508-gulf-fwy-ste-f-houston", name: "Concentra", address: "8508 Gulf Fwy Ste F, Houston, TX 77017", phone: "713-944-4442", hours: "Mon-Fri 8am-5pm", area: "Houston" },
+  { id: "concentra-9200-hempstead-hwy-ste-137-houston", name: "Concentra", address: "9200 Hempstead Hwy Ste 137, Houston, TX 77008", phone: "713-880-9800", hours: "Mon-Fri 8am-5pm", area: "Houston" },
+  { id: "gohealth-11700-westheimer-rd-ste-j-houston", name: "GoHealth", address: "11700 Westheimer Rd Ste J, Houston, TX 77077", phone: "346-575-0067", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Houston" },
+  { id: "gohealth-12740-memorial-dr-ste-100-houston", name: "GoHealth", address: "12740 Memorial Dr Ste 100, Houston, TX 77024", phone: "346-326-9990", hours: "Sun-Sat 8am-Midnight", area: "Houston" },
+  { id: "nextcare-1202-e-nasa-parkway-houston", name: "NextCare", address: "1202 E Nasa Parkway, Houston, TX 77052", phone: "281-335-0606", hours: "Sun-Sat 9am-9pm", area: "Houston" },
+  { id: "nextlevel-4936-beechnut-houston", name: "NextLevel", address: "4936 Beechnut, Houston, TX 77096", phone: "281-439-7995 / 281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Houston" },
+  { id: "nextlevel-5749-san-felipe-houston", name: "NextLevel", address: "5749 San Felipe, Houston, TX 77057", phone: "281-783-8162", hours: "Mon-Fri 9am-9pm", area: "Houston" },
+  { id: "carenow-6501-s-fry-rd-ste-1000-katy", name: "CareNow", address: "6501 S Fry Rd Ste 1000, Katy, TX 77494", phone: "832-260-0670", hours: "Sun-Sat 8am-8pm", area: "Katy" },
+  { id: "concentra-25805-katy-fwy-ste-600-katy", name: "Concentra", address: "25805 Katy Fwy Ste 600, Katy, TX 77494", phone: "346-266-0756", hours: "Mon-Fri 8am-5pm", area: "Katy" },
+  { id: "nextlevel-10625-spring-green-blvd-ste-200-katy", name: "NextLevel", address: "10625 Spring Green Blvd Ste 200, Katy, TX 77494", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Katy" },
+  { id: "nextlevel-1420-katy-fort-bend-rd-ste-105-katy", name: "NextLevel", address: "1420 Katy Fort Bend Rd Ste 105, Katy, TX 77493", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Katy" },
+  { id: "nextlevel-21700-kingsland-blvd-ste-104-katy", name: "NextLevel", address: "21700 Kingsland Blvd Ste 104, Katy, TX 77450", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Katy" },
+  { id: "nextlevel-9722-gaston-rd-ste-190-katy", name: "NextLevel", address: "9722 Gaston Rd Ste 190, Katy, TX 77494", phone: "281-783-8162 / 713-439-7995", hours: "Sun-Sat 9am-9pm", area: "Katy" },
+  { id: "afc-8850-spencer-hwy-ste-105-la-porte", name: "AFC", address: "8850 Spencer Hwy Ste 105, La Porte, TX 77571", phone: "281-946-9980", hours: "Sun-Sat 8am-8pm", area: "La Porte" },
+  { id: "concentra-1309-west-fairmont-pkwy-ste-x-la-porte", name: "Concentra", address: "1309 West Fairmont Pkwy Ste X, La Porte, TX 77571", phone: "281-470-1542", hours: "Mon-Fri 8am-5pm", area: "La Porte" },
+  { id: "nextlevel-101-winding-way-ste-a-lake-jackson", name: "NextLevel", address: "101 Winding Way Ste A, Lake Jackson, TX 77566", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Lake Jackson" },
+  { id: "nextlevel-2560-e-league-city-pkwy-ste-b-league-city", name: "NextLevel", address: "2560 E League City Pkwy Ste B, League City, TX 77573", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "League City" },
+  { id: "gohealth-8035-hwy-6-ste-170-missouri-city", name: "GoHealth", address: "8035 Hwy 6 Ste 170, Missouri City, TX 77459", phone: "281-947-0017", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Missouri City" },
+  { id: "nextlevel-8720-hwy-6-ste-400-missouri-city", name: "NextLevel", address: "8720 Hwy 6 Ste 400, Missouri City, TX 77459", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Missouri City" },
+  { id: "carenow-5233-fairmont-pkwy-ste-1-pasadena", name: "CareNow", address: "5233 Fairmont Pkwy Ste 1, Pasadena, TX 77505", phone: "713-568-0240", hours: "Sun 8am-5pm, Mon-Fri 8am-9pm, Sat 8am-8pm", area: "Pasadena" },
+  { id: "nextcare-6825-spencer-hwy-pasadena", name: "NextCare", address: "6825 Spencer Hwy, Pasadena, TX 77505", phone: "281-741-0070", hours: "Sun-Sat 9am-9pm", area: "Pasadena" },
+  { id: "carenow-11826-broadway-st-pearland", name: "CareNow", address: "11826 Broadway St, Pearland, TX 77584", phone: "346-422-2400", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Pearland" },
+  { id: "carenow-2907-east-broadway-st-pearland", name: "CareNow", address: "2907 East Broadway St, Pearland, TX 77581", phone: "281-925-1970", hours: "Sun 8am-5pm, Mon-Fri 8am-9pm, Sat 8am-8pm", area: "Pearland" },
+  { id: "nextlevel-8325-broadway-st-ste-220-pearland", name: "NextLevel", address: "8325 Broadway St Ste 220, Pearland, TX 77581", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Pearland" },
+  { id: "afc-18310-w-airport-blvd-ste-100-richmond", name: "AFC", address: "18310 W Airport Blvd Ste 100, Richmond, TX", phone: "832-730-4481 / 832-756-7772", hours: "Sun-Sat 8am-8pm", area: "Richmond" },
+  { id: "afc-3415-fm-762-ste-180-richmond", name: "AFC", address: "3415 FM 762 Ste 180, Richmond, TX 77469", phone: "281-699-5680", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-5pm", area: "Richmond" },
+  { id: "nextlevel-4002-fm-762-rd-ste-100-rosenberg", name: "NextLevel", address: "4002 FM 762 Rd Ste 100, Rosenberg, TX 77469", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Rosenberg" },
+  { id: "concentra-10521-corporate-dr-stafford", name: "Concentra", address: "10521 Corporate Dr, Stafford, TX 77477", phone: "281-277-7997", hours: "Mon-Fri 8am-5pm", area: "Stafford" },
+  { id: "afc-3551-hwy-6-sugar-land", name: "AFC", address: "3551 Hwy 6, Sugar Land, TX 77478", phone: "281-491-5742 / 832-324-9996", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Sugar Land" },
+  { id: "carenow-1403-hwy-6-sugar-land", name: "CareNow", address: "1403 Hwy 6, Sugar Land, TX 77478", phone: "832-260-0640", hours: "Sun-Sat 8am-8pm", area: "Sugar Land" },
+  { id: "nextlevel-16312-southwest-fwy-sugar-land", name: "NextLevel", address: "16312 Southwest Fwy, Sugar Land, TX 77479", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Sugar Land" },
+];
+
+const STORE_NEAREST = {
+  "6": [["afc-2402-bay-area-blvd-ste-m-houston", 1.6], ["carenow-1729-s-friendswood-dr-friendswood", 5.3]],
+  "16": [["carenow-3150-gulf-fwy-s-dickinson", 2.9], ["carenow-1729-s-friendswood-dr-friendswood", 4.6]],
+  "35": [["affinity-2808-61st-st-ste-200-galveston", 0.5], ["west-isle-2027-61st-st-galveston", 0.5]],
+  "46": [["carenow-2907-east-broadway-st-pearland", 2.8], ["concentra-8508-gulf-fwy-ste-f-houston", 5.0]],
+  "81": [["carenow-1917-w-gray-st-houston", 0.5], ["carenow-2707-milam-st-houston", 2.1], ["carenow-102-w-11th-st-houston", 3.0], ["concentra-9200-hempstead-hwy-ste-137-houston", 3.5]],
+  "82": [["concentra-6545-southwest-fwy-houston", 2.3], ["carenow-14045-memorial-dr-houston", 5.6], ["carenow-1917-w-gray-st-houston", 5.8]],
+  "88": [["carenow-1917-w-gray-st-houston", 1.1], ["carenow-2707-milam-st-houston", 2.5], ["carenow-102-w-11th-st-houston", 3.5], ["concentra-9200-hempstead-hwy-ste-137-houston", 3.8]],
+  "10": [["nextcare-1202-e-nasa-parkway-houston", 3.1], ["nextlevel-2560-e-league-city-pkwy-ste-b-league-city", 4.0], ["afc-2402-bay-area-blvd-ste-m-houston", 4.1]],
+  "32": [["nextlevel-2560-e-league-city-pkwy-ste-b-league-city", 2.7], ["nextcare-1202-e-nasa-parkway-houston", 4.5]],
+  "36": [["afc-6040-garth-rd-ste-10-baytown", 1.0], ["nextlevel-7710-garth-rd-ste-a-baytown", 2.7]],
+  "45": [["concentra-8505-gulf-fwy-ste-f-houston", 2.9], ["carenow-5233-fairmont-pkwy-ste-1-pasadena", 4.7]],
+  "52": [["carenow-1729-s-friendswood-dr-friendswood", 1.8], ["nextcare-1202-e-nasa-parkway-houston", 3.9]],
+  "71": [["carenow-1917-w-gray-st-houston", 3.0], ["concentra-6545-southwest-fwy-houston", 3.5]],
+  "199": [["carenow-5233-fairmont-pkwy-ste-1-pasadena", 1.2], ["nextcare-6825-spencer-hwy-pasadena", 2.9]],
+  "201": [["afc-8850-spencer-hwy-ste-105-la-porte", 2.0], ["concentra-1309-west-fairmont-pkwy-ste-x-la-porte", 2.5]],
+  "8": [["nextlevel-21700-kingsland-blvd-ste-104-katy", 1.4], ["carenow-6501-s-fry-rd-ste-1000-katy", 3.2]],
+  "12": [["carenow-14045-memorial-dr-houston", 1.0], ["concentra-12345-katy-fwy-houston", 1.0]],
+  "41": [["carenow-6501-s-fry-rd-ste-1000-katy", 1.8], ["nextlevel-9722-gaston-rd-ste-190-katy", 2.2]],
+  "49": [["gohealth-12740-memorial-dr-ste-100-houston", 0.6], ["carenow-14045-memorial-dr-houston", 1.7], ["concentra-12345-katy-fwy-houston", 2.5]],
+  "92": [["afc-18310-w-airport-blvd-ste-100-richmond", 1.1], ["carenow-6501-s-fry-rd-ste-1000-katy", 4.7]],
+  "139": [["nextlevel-1420-katy-fort-bend-rd-ste-105-katy", 0.8], ["concentra-25805-katy-fwy-ste-600-katy", 1.7], ["carenow-6501-s-fry-rd-ste-1000-katy", 5.1]],
+  "140": [["nextlevel-10625-spring-green-blvd-ste-200-katy", 1.1], ["carenow-6501-s-fry-rd-ste-1000-katy", 2.5]],
+  "166": [["nextlevel-9722-gaston-rd-ste-190-katy", 0.0], ["carenow-6501-s-fry-rd-ste-1000-katy", 2.8]],
+  "3": [["gohealth-11700-westheimer-rd-ste-j-houston", 3.7], ["carenow-14045-memorial-dr-houston", 4.6], ["concentra-12345-katy-fwy-houston", 4.8]],
+  "18": [["afc-18310-w-airport-blvd-ste-100-richmond", 3.9], ["concentra-10521-corporate-dr-stafford", 4.2]],
+  "39": [["nextlevel-4002-fm-762-rd-ste-100-rosenberg", 0.1], ["afc-3415-fm-762-ste-180-richmond", 0.6]],
+  "43": [["concentra-10521-corporate-dr-stafford", 0.8], ["afc-3551-hwy-6-sugar-land", 2.1], ["carenow-1403-hwy-6-sugar-land", 2.4], ["nextlevel-16312-southwest-fwy-sugar-land", 2.4]],
+  "47": [["afc-3551-hwy-6-sugar-land", 1.9], ["nextlevel-8720-hwy-6-ste-400-missouri-city", 3.2], ["carenow-1403-hwy-6-sugar-land", 4.0]],
+  "101": [["carenow-1403-hwy-6-sugar-land", 2.8], ["nextlevel-16312-southwest-fwy-sugar-land", 3.0]],
+  "176": [["nextlevel-8720-hwy-6-ste-400-missouri-city", 0.4], ["gohealth-8035-hwy-6-ste-170-missouri-city", 4.1]],
+  "219": [["carenow-11826-broadway-st-pearland", 2.1], ["nextlevel-8325-broadway-st-ste-220-pearland", 2.8]],
+  "2": [["gohealth-11700-westheimer-rd-ste-j-houston", 0.4], ["afc-5568-weslayan-st-houston", 1.5], ["carenow-14045-memorial-dr-houston", 2.3]],
+  "5": [["concentra-6545-southwest-fwy-houston", 1.7], ["carenow-14045-memorial-dr-houston", 5.3]],
+  "23": [["nextlevel-5749-san-felipe-houston", 1.5], ["carenow-1917-w-gray-st-houston", 3.9]],
+  "24": [["nextlevel-5749-san-felipe-houston", 0.5], ["carenow-1917-w-gray-st-houston", 5.0]],
+  "42": [["concentra-6545-southwest-fwy-houston", 2.7], ["nextlevel-4936-beechnut-houston", 4.0]],
+  "108": [["nextlevel-101-winding-way-ste-a-lake-jackson", 9.4], ["concentra-1002-abc-ave-ste-600-freeport", 11.5]],
+  "172": [["matagorda-regional-medical-center-104-7th-st-bay-city", 2.4]],
+  "189": [["nextlevel-4936-beechnut-houston", 2.4], ["afc-5568-weslayan-st-houston", 2.6]],
+  "0": [["carenow-2707-milam-st-houston", 0.2], ["carenow-1917-w-gray-st-houston", 1.6]],
+  "21": [["afc-5568-weslayan-st-houston", 0.8], ["carenow-1917-w-gray-st-houston", 3.2]],
+  "59": [["carenow-1917-w-gray-st-houston", 1.2], ["afc-107-yale-st-ste-200-houston", 1.5]],
+};
+
+// Any location of these providers is approved, even if it is not listed above.
+const BRAND_OPTIONS = [
+  { value: 'brand:Concentra', name: 'Concentra' },
+  { value: 'brand:CareNow', name: 'CareNow' }
+];
+
+function siteById(id) { return APPROVED_SITES.find(s => s.id === id) || null; }
+function brandByValue(v) { return BRAND_OPTIONS.find(b => b.value === v) || null; }
+
+// Resolved testing site for the record.
+// kind: 'approved' (on the list) | 'brand' (any Concentra / CareNow location) | 'other' (not on the list, needs DM/HR approval) | 'manual' (list empty)
+function siteInfo() {
+  const d = S.data;
+  if (!APPROVED_SITES.length) {
+    return d.siteOtherName ? { kind: 'manual', name: d.siteOtherName, address: '', phone: '', approver: '' } : null;
+  }
+  if (d.siteChoice === 'other') {
+    return d.siteOtherName ? { kind: 'other', name: d.siteOtherName, address: '', phone: d.siteOtherPhone || '', approver: d.siteOtherApprover } : null;
+  }
+  const b = brandByValue(d.siteChoice);
+  if (b) return d.siteOtherName ? { kind: 'brand', name: b.name, address: d.siteOtherName, phone: '', approver: '' } : null;
+  const s = siteById(d.siteChoice);
+  return s ? { kind: 'approved', name: s.name, address: s.address || '', phone: s.phone || '', approver: '' } : null;
+}
+function siteText(i) {
+  let t = i.name + (i.address ? ', ' + i.address : '') + (i.phone ? ' (' + i.phone + ')' : '');
+  if (i.kind === 'approved') t += ' — approved testing site';
+  else if (i.kind === 'brand') t += ' — approved provider (all ' + i.name + ' locations)';
+  else if (i.kind === 'other') t += ' — not on the approved list; authorized by ' + i.approver;
+  return t;
+}
+function captureSiteFields() {
+  const g = id => document.getElementById(id);
+  if (g('f-siteStore')) { S.data.siteStore = g('f-siteStore').value; S.data.siteStoreTouched = true; }
+  if (g('f-siteStoreOther')) S.data.siteStoreOther = g('f-siteStoreOther').value.trim();
+  if (g('f-site')) S.data.siteChoice = g('f-site').value;
+  if (g('f-siteOtherName')) S.data.siteOtherName = g('f-siteOtherName').value.trim();
+  if (g('f-siteOtherPhone')) S.data.siteOtherPhone = g('f-siteOtherPhone').value.trim();
+  if (g('f-siteOtherApprover')) S.data.siteOtherApprover = g('f-siteOtherApprover').value.trim();
+  if (g('f-ahTime')) S.data.ahTime = g('f-ahTime').value.trim();
+}
+function onSiteChange() {
+  const before = S.data.siteChoice;
+  captureSiteFields();
+  // Switching to a different kind of site clears text typed for the previous one.
+  if (S.data.siteChoice !== before) { S.data.siteOtherName = ''; S.data.siteOtherPhone = ''; S.data.siteOtherApprover = ''; }
+  render();
+}
+// Tapping one of the "closest to your store" cards selects that site.
+function pickSite(id) {
+  captureSiteFields();
+  if (S.data.siteChoice !== id) { S.data.siteChoice = id; S.data.siteOtherName = ''; S.data.siteOtherPhone = ''; S.data.siteOtherApprover = ''; }
+  render();
+}
+// Pre-selects the store from the setup screen ("Store 12", "12", ...) when it is on the list.
+function guessStore() {
+  const m = String(S.data.location || '').match(/\b(\d{1,3})\b/);
+  const k = m ? String(Number(m[1])) : '';
+  return k && STORE_NEAREST[k] ? k : '';
+}
+function siteValid() {
+  const d = S.data;
+  if (!APPROVED_SITES.length) {
+    if (!d.siteOtherName) { alert('Enter the testing facility name and address before proceeding.'); return false; }
+    return true;
+  }
+  if (d.siteStore === 'other' && !d.siteStoreOther) { alert('Enter your store number or name.'); return false; }
+  if (d.siteChoice === 'other') {
+    if (!d.siteOtherName) { alert('Enter the facility name and address.'); return false; }
+    if (!d.siteOtherApprover) { alert('A location that is not on the list must be authorized by your DM or HR before you transport. Enter who authorized it.'); return false; }
+    return true;
+  }
+  const b = brandByValue(d.siteChoice);
+  if (b) {
+    if (!d.siteOtherName) { alert('Enter the address and phone number of the ' + b.name + ' location you are using.'); return false; }
+    return true;
+  }
+  if (!siteById(d.siteChoice)) { alert('Select the testing facility before proceeding.'); return false; }
+  return true;
+}
+function siteSelectorHTML(label) {
+  const d = S.data;
+  if (!APPROVED_SITES.length) {
+    return `<div class="field"><label>${esc(label)} — name and address</label><input type="text" id="f-siteOtherName" value="${esc(d.siteOtherName)}" placeholder="Facility name and address"></div>`;
+  }
+  const sel = o => (d.siteChoice === o ? 'selected' : '');
+  const opt = (s, suffix) => `<option value="${esc(s.id)}" ${sel(s.id)}>${esc(s.name)} — ${esc(s.address)}${suffix || ''}</option>`;
+
+  // Store picker: the store's closest sites are shown first, as tappable cards.
+  if (!d.siteStore && !d.siteStoreTouched) d.siteStore = guessStore();
+  const stores = Object.keys(STORE_NEAREST).sort((a, b) => Number(a) - Number(b));
+  let storeHTML = '', cardsHTML = '', nearestIds = [];
+  if (stores.length) {
+    storeHTML = `<div class="field"><label>Your store (shows the closest sites first)</label>
+      <select id="f-siteStore" onchange="onSiteChange()">
+        <option value="">Select your store</option>
+        ${stores.map(st => `<option value="${esc(st)}" ${d.siteStore === st ? 'selected' : ''}>Store ${esc(st)}</option>`).join('')}
+        <option value="other" ${d.siteStore === 'other' ? 'selected' : ''}>My store is not on this list</option>
+      </select></div>`;
+    if (d.siteStore === 'other') storeHTML += `<div class="field"><label>Your store number or name</label><input type="text" id="f-siteStoreOther" value="${esc(d.siteStoreOther)}" placeholder="e.g. Store 262">
+      <p style="margin-top:6px;font-size:12.5px;color:var(--mid);">We don't have closest-site distances for this store yet. Pick from the full list below, grouped by city, or use a location your DM or HR has authorized.</p></div>`;
+    const near = (STORE_NEAREST[d.siteStore] || []).filter(n => siteById(n[0])).sort((a, b) => a[1] - b[1]);
+    nearestIds = near.map(n => n[0]);
+    if (near.length) cardsHTML = `<div class="near-head">Closest to Store ${esc(d.siteStore)} — tap to select</div>` + near.map(n => {
+      const x = siteById(n[0]);
+      return `<div class="site-card ${d.siteChoice === x.id ? 'on' : ''}" role="button" tabindex="0" onclick="pickSite('${esc(x.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();pickSite('${esc(x.id)}')}">
+        <div class="sc-top"><strong>${esc(x.name)}</strong><span class="sc-mi">${n[1]} mi</span></div>
+        <div>${esc(x.address)}</div>
+        <div class="sc-sub">${esc(x.hours || '')}${x.phone ? ' · ' + esc(x.phone) : ''}</div></div>`;
+    }).join('');
+  }
+
+  const groups = {};
+  APPROVED_SITES.forEach(x => { (groups[x.area || ''] = groups[x.area || ''] || []).push(x); });
+  const byName = (a, b) => (a.name + a.address).localeCompare(b.name + b.address);
+  const body = Object.keys(groups).sort().map(a => a
+    ? `<optgroup label="${esc(a)}">${groups[a].sort(byName).map(x => opt(x)).join('')}</optgroup>`
+    : groups[a].sort(byName).map(x => opt(x)).join('')).join('');
+  const brandGroup = BRAND_OPTIONS.length
+    ? `<optgroup label="Any location of these providers">${BRAND_OPTIONS.map(b => `<option value="${esc(b.value)}" ${sel(b.value)}>Any other ${esc(b.name)} location — enter address</option>`).join('')}</optgroup>`
+    : '';
+
+  let html = storeHTML + cardsHTML + `<div class="field"><label>${nearestIds.length ? 'Or choose any other site' : esc(label)}</label>
+      <select id="f-site" onchange="onSiteChange()">
+        <option value="">Select a testing site…</option>${brandGroup}${body}
+        <option value="other" ${sel('other')}>Other — authorized location that is not on this list</option>
+      </select></div>`;
+
+  const site = siteById(d.siteChoice);
+  const brand = brandByValue(d.siteChoice);
+  if (site) html += `<div class="site-detail"><strong>${esc(site.name)}</strong><br>${esc(site.address)}${site.hours ? '<br>Hours: ' + esc(site.hours) : ''}${site.phone ? '<br>Call to confirm they are open and can receive the employee: <strong>' + esc(site.phone) + '</strong>' : ''}</div>`;
+  if (brand) html += `<div class="gate"><span>&#9888;</span><span><strong>Every ${esc(brand.name)} location is approved.</strong> Enter the address and phone number of the location you are using, and call to confirm it is open.</span></div>
+      <div class="field"><label>${esc(brand.name)} location — address and phone</label><input type="text" id="f-siteOtherName" value="${esc(d.siteOtherName)}" placeholder="Street address, city, and phone number"></div>`;
+  if (d.siteChoice === 'other') html += `<div class="gate"><span>&#9888;</span><span><strong>Use a listed site whenever you can.</strong> A location that is not on this list needs authorization from your DM or HR before you transport. Record who authorized it.</span></div>
+      <div class="field"><label>Facility name and address</label><input type="text" id="f-siteOtherName" value="${esc(d.siteOtherName)}" placeholder="Facility name, street address, city"></div>
+      <div class="field"><label>Facility phone number</label><input type="text" id="f-siteOtherPhone" value="${esc(d.siteOtherPhone)}" placeholder="So you can call to confirm they are open"></div>
+      <div class="field"><label>Authorized by (DM / HR name)</label><input type="text" id="f-siteOtherApprover" value="${esc(d.siteOtherApprover)}" placeholder="Name and role"></div>`;
+  return html;
+}
 
 function render() {
   renderProgress();
@@ -289,7 +618,9 @@ function render() {
         <p class="lead">This guide will walk you through the reasonable suspicion process step by step, exactly as trained. Every step you take is automatically time-stamped and added to an incident record you can print or send to HR when finished.</p>
         <div class="field"><label>Your Name (Manager Initiating)</label><input type="text" id="f-manager" value="${esc(S.data.manager)}" placeholder="First and last name"></div>
         <div class="field"><label>Employee First Name</label><input type="text" id="f-employee" value="${esc(S.data.employee)}" placeholder="Used to personalize the scripts"></div>
-        <div class="field"><label>Location / Store / Facility</label><input type="text" id="f-location" value="${esc(S.data.location)}" placeholder="e.g. Store 90 Warehouse"></div>
+        <div class="field"><label>Employee Last Name</label><input type="text" id="f-employeeLast" value="${esc(S.data.employeeLast)}" placeholder="For the incident record"></div>
+        <div class="field"><label>Employee ID (optional)</label><input type="text" id="f-employeeId" value="${esc(S.data.employeeId)}" placeholder="Associate / employee number, if you have it"></div>
+        <div class="field"><label>Location / Store / Facility</label><input type="text" id="f-location" value="${esc(S.data.location)}" placeholder="Store number or facility name"></div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="saveSetup()">Begin the Process <span class="arrow">&#8594;</span></button>
         </div>
@@ -304,7 +635,7 @@ function render() {
         <div class="check-grid">
           ${SIGNS.map((s, i) => `<label class="check-item ${S.data.signs.includes(s) ? 'checked' : ''}" onclick="event.preventDefault(); toggleSign(${i})"><input type="checkbox" ${S.data.signs.includes(s) ? 'checked' : ''}> ${s}</label>`).join('')}
         </div>
-        <div class="field"><label>Other observations — what you saw, smelled, or heard (in your own words)</label><textarea id="f-otherObs" placeholder="e.g. Found him asleep at the pick station at 9:40am. Strong smell of alcohol when he spoke. Knocked over a case of product.">${esc(S.data.otherObs)}</textarea></div>
+        <div class="field"><label>Other observations — what you saw, smelled, or heard (in your own words)</label><textarea id="f-otherObs" placeholder="e.g. Found the employee asleep at the pick station at 9:40am. Strong smell of alcohol when speaking. Knocked over a case of product.">${esc(S.data.otherObs)}</textarea></div>
         <div class="gate"><span>&#9888;</span><span><strong>You must have at least one specific, observable sign.</strong> A hunch is not reasonable suspicion — documented observations are.</span></div>
         <div class="btn-row">
           <button class="btn btn-primary" id="btn-observe" onclick="saveObserve()">Observations Documented — Next Step <span class="arrow">&#8594;</span></button>
@@ -318,7 +649,7 @@ function render() {
         <h2>CORROBORATE — Get a second manager.</h2>
         <p class="lead">A second manager or supervisor must independently observe the employee. This is critical for an objective position — and it is required before you proceed.</p>
         <div class="field"><label>Second Manager / Witness Name</label><input type="text" id="f-witness" value="${esc(S.data.witness)}" placeholder="First and last name"></div>
-        <div class="field"><label>Witness observations (optional — their own words)</label><textarea id="f-witnessObs" placeholder="What the second manager saw, smelled, or heard.">${esc(S.data.witnessObs)}</textarea></div>
+        <div class="field"><label>Witness observations — what they saw, smelled, or heard (their own words)</label><textarea id="f-witnessObs" placeholder="What the second manager saw, smelled, or heard.">${esc(S.data.witnessObs)}</textarea></div>
         <div class="gate"><span>&#9888;</span><span><strong>Do not proceed alone.</strong> The conversation must happen with a managerial witness present. If your location has union-represented employees, a steward should be present if possible.</span></div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="saveCorroborate()">Second Manager Has Observed — Next Step <span class="arrow">&#8594;</span></button>
@@ -361,11 +692,12 @@ function render() {
     'facility-status': () => `
       <div class="card">
         <div class="path-tag green">GREEN PATH — TESTING</div>
-        <h2>Is the testing facility open and available right now?</h2>
-        <p class="lead">${name()} has agreed to test. Before you transport, confirm the facility is open and able to receive them. This determines whether you test now or arrange morning testing.</p>
+        <h2>Select the testing facility and confirm it is open.</h2>
+        <p class="lead">${name()} has agreed to test. Choose where you are sending them, then confirm the facility is open and able to receive them. This determines whether you test now or arrange morning testing.</p>
+        ${siteSelectorHTML('Testing facility')}
         <div class="btn-row">
-          <button class="btn btn-green" onclick="logEvent('Testing facility confirmed open and available. Proceeding to transport.'); pushState('green-prep')">&#10003;&nbsp; Yes — Facility Is Open Now <span class="arrow">&#8594;</span></button>
-          <button class="btn btn-neutral" onclick="logEvent('Testing facility closed / after-hours. Proceeding to after-hours protocol.'); pushState('after-hours')">&#128274;&nbsp; No — Facility Is Closed / After-Hours <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-green" onclick="saveFacility('open')">&#10003;&nbsp; Yes — Facility Is Open Now <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-neutral" onclick="saveFacility('closed')">&#128274;&nbsp; No — Facility Is Closed / After-Hours <span class="arrow">&#8594;</span></button>
         </div>
         <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
       </div>`,
@@ -374,14 +706,15 @@ function render() {
     'after-hours': () => `
       <div class="card">
         <div class="path-tag green">GREEN PATH — AFTER-HOURS PROTOCOL</div>
-        <h2>Facility closed: send home safely, test first thing in the morning.</h2>
-        <p class="lead">The facility is unavailable, but ${name()} still cannot remain at work and cannot drive themselves. Follow this protocol exactly:</p>
-        <div class="gate" style="margin-bottom:6px;"><span>1.</span><span><strong>Provide safe transportation home now.</strong> Offer a ride or a company-reimbursed rideshare (see safe-travel options below). The employee does not drive.</span></div>
-        <div class="gate" style="margin-bottom:6px;"><span>2.</span><span><strong>Instruct the employee to report first thing in the morning</strong> to the testing location you assign. Be specific about where and when.</span></div>
-        <div class="gate" style="margin-bottom:6px;"><span>3.</span><span><strong>The employee must provide proof of testing before returning to work.</strong> They do not resume their duties until that proof is received.</span></div>
+        <h2>Facility closed: schedule the test for the next day and get them home safely.</h2>
+        <p class="lead">The facility is closed, but ${name()} still cannot remain at work and cannot drive themselves. Follow this protocol exactly:</p>
+        <div class="gate" style="margin-bottom:6px;"><span>1.</span><span><strong>Schedule the test for the next day.</strong> Choose the site below, call to book the appointment for the next day it is open (check the hours shown), and record the date and time.</span></div>
+        <div class="gate" style="margin-bottom:6px;"><span>2.</span><span><strong>Provide safe transportation home now.</strong> Offer a ride or a company-reimbursed rideshare (see safe-travel options below). The employee does not drive.</span></div>
+        <div class="gate" style="margin-bottom:6px;"><span>3.</span><span><strong>Instruct the employee to report to the scheduled appointment.</strong> Be specific about where and when.</span></div>
+        <div class="gate" style="margin-bottom:6px;"><span>4.</span><span><strong>The employee must provide proof of testing before returning to work.</strong> They do not resume their duties until that proof is received.</span></div>
 
-        <div class="field" style="margin-top:14px;"><label>Assigned morning testing location</label><input type="text" id="f-ahLocation" value="${esc(S.data.ahLocation)}" placeholder="e.g. Concentra, 1200 Main St — name and address"></div>
-        <div class="field"><label>Assigned report time</label><input type="text" id="f-ahTime" value="${esc(S.data.ahTime)}" placeholder="e.g. 7:00 AM, before any shift"></div>
+        <div style="margin-top:14px;">${siteSelectorHTML('Testing site for the next-day appointment')}</div>
+        <div class="field"><label>Scheduled appointment — date and time</label><input type="text" id="f-ahTime" value="${esc(S.data.ahTime)}" placeholder="e.g. Tuesday 10/27 at 8:00 AM"></div>
 
         <div class="safe-travel">
           <div class="st-title">&#128663; Safe travel home — your options</div>
@@ -408,7 +741,7 @@ function render() {
         <h2>Transport to the testing facility.</h2>
         <p class="lead">The employee has agreed to test. Three requirements before you leave:</p>
         <div class="btn-row" style="margin-top:4px;">
-          <div class="gate" style="margin-bottom:6px;"><span>1.</span><span><strong>Take the Authorization to Treat form with you.</strong> The facility needs it.</span></div>
+          <div class="gate" style="margin-bottom:6px;"><span>1.</span><span><strong>Print the Authorization to Treat form and take it with you.</strong> The facility needs it.</span></div>
           <div class="gate" style="margin-bottom:6px;"><span>2.</span><span><strong>Keep the associate CLOCKED IN.</strong> They remain on the clock through the entire testing process.</span></div>
           <div class="gate" style="margin-bottom:6px;"><span>3.</span><span><strong>A manager drives.</strong> The employee does not drive themselves — to the facility or anywhere else.</span></div>
         </div>
@@ -426,7 +759,7 @@ function render() {
         <p class="lead">Stay with the employee through the process. One thing to watch for: <strong>if they refuse to continue at any point</strong> — in the car, in the waiting room, at the desk — that becomes a refusal and moves to the red path.</p>
         <div class="btn-row">
           <button class="btn btn-green" onclick="logEvent('Testing completed at facility.'); pushState('green-return')">&#10003;&nbsp; Testing Completed <span class="arrow">&#8594;</span></button>
-          <button class="btn btn-redp" onclick="logEvent('Employee refused to continue while en route / at facility. Converting to RED path.'); goRed('green-route')">&#10007;&nbsp; They Refused to Continue — Convert to Red Path <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-redp" onclick="goRed('green-route', 'Employee refused to continue while en route / at facility. Converting to RED path.')">&#10007;&nbsp; They Refused to Continue — Convert to Red Path <span class="arrow">&#8594;</span></button>
         </div>
         <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
       </div>`,
@@ -436,7 +769,7 @@ function render() {
       <div class="card">
         <div class="path-tag green">GREEN PATH — AFTER TESTING</div>
         <h2>Back from the facility: clock out, get them home safely.</h2>
-        <p class="lead">Upon return from the facility, have ${name()} <strong>clock out</strong> — then arrange to get them home safely. They do not drive themselves home.</p>
+        <p class="lead">Upon return from the facility, have ${name()} <strong>clock out, regardless of the results of the test</strong> — then arrange to get them home safely. They do not drive themselves home.</p>
         <div class="safe-travel">
           <div class="st-title">&#128663; Safe travel home — your options</div>
           <ul>
@@ -468,7 +801,7 @@ function render() {
         </div>
         <p class="lead" style="margin-bottom:8px;"><strong>After repeating — what is ${name()}'s final answer?</strong></p>
         <div class="btn-row">
-          <button class="btn btn-green" onclick="logEvent('Employee changed their mind after refusal script — agreed to test. Converting to GREEN path.'); goGreen('red-script')">&#10003;&nbsp; &ldquo;No, I'll go.&rdquo; — Convert to Green Path <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-green" onclick="goGreen('red-script', 'Employee changed their mind after refusal script — agreed to test. Converting to GREEN path.')">&#10003;&nbsp; &ldquo;No, I'll go.&rdquo; — Convert to Green Path <span class="arrow">&#8594;</span></button>
           <button class="btn btn-redp" id="btn-still-refusing" onclick="confirmRefusal()">&#10007;&nbsp; &ldquo;Yes.&rdquo; — Still Refusing <span class="arrow">&#8594;</span></button>
         </div>
         <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
@@ -531,54 +864,19 @@ function render() {
         <h2>NOTIFY — Contact your DM or HR again.</h2>
         <p class="lead">The training requires contact <strong>before and after</strong> engaging the employee. Call ${esc(S.data.dmContact) || 'your DM/HR contact'} now, report what happened, and confirm next steps (test results handling, pay, return-to-work, or termination process).</p>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="logEvent('DM/HR contacted AFTER the process — outcome reported and next steps confirmed.'); pushState('record')">&#10003;&nbsp; DM/HR Notified — Generate Incident Record <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-primary" onclick="logEvent('DM/HR contacted AFTER the process — outcome reported and next steps confirmed.'); S.data.generatedISO = new Date().toISOString(); pushState('record')">&#10003;&nbsp; DM/HR Notified — Generate Incident Record <span class="arrow">&#8594;</span></button>
         </div>
         <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
       </div>`,
 
     // ─────────────────────────────────────────────────────────
-    record: () => {
-      const d = S.data;
-      return `
+    record: () => `
+      <div class="subject-box no-print">
+        <div class="sb-label">Email subject line</div>
+        <div class="sb-text">${esc(emailSubject())}</div>
+      </div>
       <div class="record" id="printRecord">
-        <h2>Reasonable Suspicion Incident Record</h2>
-        <div class="r-sub">Spec's Family Corp &middot; Generated ${today()} &middot; Management Use Only &middot; Route to HR</div>
-
-        <div class="r-section">
-          <div class="r-label">Incident Information</div>
-          <div class="r-row"><strong>Date:</strong> ${today()}</div>
-          <div class="r-row"><strong>Location:</strong> ${esc(d.location) || '—'}</div>
-          <div class="r-row"><strong>Initiating Manager:</strong> ${esc(d.manager) || '—'}</div>
-          <div class="r-row"><strong>Witnessing Manager:</strong> ${esc(d.witness) || '—'}</div>
-          <div class="r-row"><strong>Employee:</strong> ${esc(d.employee) || '—'}</div>
-          <div class="r-row"><strong>DM/HR Contact:</strong> ${esc(d.dmContact) || '—'}</div>
-          <div class="r-row"><strong>Path Taken:</strong> ${d.path === 'green' ? 'Green — Agreed to Testing' : d.path === 'red' ? 'Red — Refusal' : d.path || '—'}${S.pathHistory.length > 1 ? ' (conversions: ' + S.pathHistory.join(' → ') + ')' : ''}</div>
-          <div class="r-row"><strong>Refusal script repetitions:</strong> ${d.refusalRepeats > 0 ? d.refusalRepeats : 'N/A'}</div>
-          <div class="r-row"><strong>Law enforcement contacted:</strong> ${d.policeCalled ? 'YES' : 'No'}</div>
-          ${d.afterHours ? '<div class="r-row"><strong>After-hours protocol:</strong> Facility closed. Assigned testing at ' + esc(d.ahLocation) + ' at ' + esc(d.ahTime) + '; proof of testing required before return to work.</div>' : ''}
-        </div>
-
-        <div class="r-section">
-          <div class="r-label">Documented Observations (Initiating Manager)</div>
-          <div class="r-row">${d.signs.length ? d.signs.join('; ') : '—'}</div>
-          ${d.otherObs ? '<div class="r-row" style="margin-top:4px;"><strong>Additional notes:</strong> ' + esc(d.otherObs) + '</div>' : ''}
-        </div>
-
-        ${d.witnessObs ? `<div class="r-section">
-          <div class="r-label">Witness Observations</div>
-          <div class="r-row">${esc(d.witnessObs)}</div>
-        </div>` : ''}
-
-        <div class="r-section">
-          <div class="r-label">Outcome</div>
-          <div class="r-row">${esc(d.outcome) || '—'}</div>
-        </div>
-
-        <div class="r-section">
-          <div class="r-label">Time-Stamped Step Log</div>
-          ${S.log.map(e => '<div class="r-log-entry"><span class="lt">' + e.t + '</span><span>' + e.text + '</span></div>').join('')}
-        </div>
-
+        ${recordHTML()}
         <div class="sig-row">
           <div class="sig-block"><div class="sig-line"></div><div class="sig-label">Initiating Manager Signature / Date</div></div>
           <div class="sig-block"><div class="sig-line"></div><div class="sig-label">Witnessing Manager Signature / Date</div></div>
@@ -586,14 +884,15 @@ function render() {
       </div>
 
       <div class="btn-row no-print">
-        <button class="btn btn-dark" onclick="window.print()">&#128424;&nbsp; Print This Record</button>
-        <button class="btn btn-primary" onclick="copyRecord()">&#128203;&nbsp; Copy Record as Text (for email to HR)</button>
-        <button class="btn btn-neutral" onclick="if(confirm('Start a new incident? The current record will be cleared.')) location.reload()">Start a New Incident</button>
-      </div>`;
-    }
+        <button class="btn btn-primary" onclick="copyEmailBody()">&#128203;&nbsp; Copy Email Body (paste into Outlook)</button>
+        <button class="btn btn-neutral" onclick="copySubject()">Copy Subject Line</button>
+        <button class="btn btn-dark" onclick="printRecord()">&#128424;&nbsp; Print / Save as PDF</button>
+        <button class="btn btn-neutral" onclick="newIncident()">Start a New Incident</button>
+      </div>`
   };
 
   stage.innerHTML = steps[S.step] ? steps[S.step]() : '<div class="card">Unknown step.</div>';
+  persist();
 }
 
 // ============================================================
@@ -602,9 +901,11 @@ function render() {
 function saveSetup() {
   S.data.manager = document.getElementById('f-manager').value.trim();
   S.data.employee = document.getElementById('f-employee').value.trim();
+  S.data.employeeLast = document.getElementById('f-employeeLast').value.trim();
+  S.data.employeeId = document.getElementById('f-employeeId').value.trim();
   S.data.location = document.getElementById('f-location').value.trim();
-  if (!S.data.manager || !S.data.employee) { alert('Enter your name and the employee\'s first name to begin.'); return; }
-  logEvent('Process started by ' + S.data.manager + ' regarding ' + S.data.employee + (S.data.location ? ' at ' + S.data.location : '') + '.');
+  if (!S.data.manager || !S.data.employee || !S.data.employeeLast) { alert('Enter your name and the employee\'s first and last name to begin.'); return; }
+  logEvent('Process started by ' + S.data.manager + ' regarding ' + employeeFull() + (S.data.employeeId ? ' (ID ' + S.data.employeeId + ')' : '') + (S.data.location ? ' at ' + S.data.location : '') + '.');
   pushState('observe');
 }
 
@@ -619,6 +920,7 @@ function saveCorroborate() {
   S.data.witness = document.getElementById('f-witness').value.trim();
   S.data.witnessObs = document.getElementById('f-witnessObs').value.trim();
   if (!S.data.witness) { alert('A second manager must observe before you proceed. Enter their name.'); return; }
+  if (!S.data.witnessObs) { alert('Document what the second manager saw, smelled, or heard before you proceed.'); return; }
   logEvent('Second manager corroborated: ' + S.data.witness + ' independently observed the employee.' + (S.data.witnessObs ? ' Witness notes: ' + S.data.witnessObs : ''));
   pushState('notify');
 }
@@ -630,34 +932,52 @@ function saveNotify() {
   pushState('conversation');
 }
 
-function goGreen(from) {
+function goGreen(from, msg) {
+  const snap = snapshot();
   if (from === 'conversation') logEvent('Conversation held with witness present. Employee response: compliant — agreed to testing.');
+  if (msg) logEvent(msg);
   S.data.path = 'green';
   S.pathHistory.push('GREEN');
-  pushState('facility-status');
+  pushState('facility-status', snap);
 }
 
-function goRed(from) {
+function goRed(from, msg) {
+  const snap = snapshot();
   if (from === 'conversation') logEvent('Conversation held with witness present. Employee response: refused testing.');
+  if (msg) logEvent(msg);
   S.data.path = 'red';
   S.pathHistory.push('RED');
   S.data.refusalRepeats = 0;
-  pushState('red-script');
+  pushState('red-script', snap);
+}
+
+function saveFacility(status) {
+  captureSiteFields();
+  if (!siteValid()) return;
+  if (S.data.siteStore === 'other') logEvent('Store not on the provider list: ' + S.data.siteStoreOther + '.');
+  logEvent('Testing facility selected: ' + siteText(siteInfo()) + '.');
+  if (status === 'open') {
+    logEvent('Testing facility confirmed open and available. Proceeding to transport.');
+    pushState('green-prep');
+  } else {
+    logEvent('Testing facility closed / after-hours. Proceeding to after-hours protocol.');
+    pushState('after-hours');
+  }
 }
 
 function saveAfterHours(result) {
-  S.data.ahLocation = document.getElementById('f-ahLocation').value.trim();
-  S.data.ahTime = document.getElementById('f-ahTime').value.trim();
-  if (!S.data.ahLocation || !S.data.ahTime) { alert('Enter the assigned morning testing location and report time before proceeding.'); return; }
+  captureSiteFields();
+  if (!siteValid()) return;
+  if (!S.data.ahTime) { alert('Enter the scheduled appointment date and time before proceeding.'); return; }
+  const si = siteInfo();
   S.data.afterHours = true;
-  const instr = 'After-hours protocol: facility closed. Employee instructed to report to ' + S.data.ahLocation + ' at ' + S.data.ahTime + ' and provide proof of testing before returning to work.';
+  const instr = 'After-hours protocol: facility closed. Test scheduled for the next day — ' + S.data.ahTime + ' at ' + siteText(si) + '. Employee instructed to report then and provide proof of testing before returning to work.';
   if (result === 'safe') {
     logEvent(instr + ' Employee sent home safely with arranged transportation.');
-    S.data.outcome = 'After-hours: facility closed. Sent home safely. Instructed to test at ' + S.data.ahLocation + ' at ' + S.data.ahTime + '; must provide proof of testing before returning to work.';
+    S.data.outcome = 'After-hours: facility closed. Sent home safely. Test scheduled for ' + S.data.ahTime + ' at ' + si.name + '; must provide proof of testing before returning to work.';
     pushState('notify-after');
   } else if (result === 'refused') {
-    logEvent(instr + ' Employee refused to agree to morning testing — converting to refusal (RED) path.');
-    goRed('after-hours');
+    goRed('after-hours', instr + ' Employee refused to agree to morning testing — converting to refusal (RED) path.');
   } else if (result === 'drives') {
     logEvent(instr + ' Employee refused a ride and is driving away.');
     pushState('police');
@@ -678,41 +998,247 @@ function confirmRefusal() {
   pushState('red-final');
 }
 
-function copyRecord() {
+// ============================================================
+// INCIDENT RECORD — formal HR email
+// ============================================================
+function employeeFull() { return [S.data.employee, S.data.employeeLast].filter(Boolean).join(' '); }
+function employeeLastFirst() { const d = S.data; return d.employeeLast ? d.employeeLast + ', ' + d.employee : d.employee; }
+function responseLabel(p) { return p === 'GREEN' ? 'Agreed to testing' : 'Refused testing'; }
+
+function emailSubject() {
+  const first = S.log.length ? new Date(S.log[0].iso) : new Date();
+  const ds = first.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  return 'CONFIDENTIAL - Reasonable Suspicion Incident Report - ' + employeeLastFirst() + (S.data.location ? ' - ' + S.data.location : '') + ' - ' + ds;
+}
+
+// One model feeds the on-screen record, the Outlook (HTML) copy, and the plain-text copy,
+// so all three always say the same thing.
+function recordModel() {
   const d = S.data;
-  let txt = 'REASONABLE SUSPICION INCIDENT RECORD\n';
-  txt += 'Spec\'s Family Corp — Management Use Only — Route to HR\n';
-  txt += '='.repeat(50) + '\n\n';
-  txt += 'Date: ' + today() + '\n';
-  txt += 'Location: ' + (d.location || '—') + '\n';
-  txt += 'Initiating Manager: ' + (d.manager || '—') + '\n';
-  txt += 'Witnessing Manager: ' + (d.witness || '—') + '\n';
-  txt += 'Employee: ' + (d.employee || '—') + '\n';
-  txt += 'DM/HR Contact: ' + (d.dmContact || '—') + '\n';
-  txt += 'Path: ' + (S.pathHistory.join(' -> ') || '—') + '\n';
-  txt += 'Refusal script repetitions: ' + (d.refusalRepeats || 'N/A') + '\n';
-  txt += 'Law enforcement contacted: ' + (d.policeCalled ? 'YES' : 'No') + '\n';
-  if (d.afterHours) txt += 'After-hours protocol: Facility closed. Assigned testing at ' + d.ahLocation + ' at ' + d.ahTime + '; proof of testing required before return to work.\n';
-  txt += '\n';
-  txt += 'OBSERVATIONS (Initiating Manager):\n' + (d.signs.join('; ') || '—') + '\n';
-  if (d.otherObs) txt += 'Notes: ' + d.otherObs + '\n';
-  if (d.witnessObs) txt += '\nWITNESS OBSERVATIONS:\n' + d.witnessObs + '\n';
-  txt += '\nOUTCOME:\n' + (d.outcome || '—') + '\n\n';
-  txt += 'TIME-STAMPED STEP LOG:\n';
-  S.log.forEach(e => { txt += '[' + e.t + '] ' + e.text + '\n'; });
-  navigator.clipboard.writeText(txt).then(() => alert('Record copied. Paste it into an email to HR.'), () => {
-    // Fallback
+  const firstISO = S.log.length ? S.log[0].iso : null;
+  const lastISO = S.log.length ? S.log[S.log.length - 1].iso : null;
+  const si = siteInfo();
+  return {
+    dateLong: firstISO ? fmtDateLong(firstISO) : today(),
+    location: d.location || '—',
+    employee: employeeFull() + (d.employeeId ? ' (ID ' + d.employeeId + ')' : ''),
+    manager: d.manager || '—',
+    witness: d.witness || '—',
+    dm: d.dmContact || '—',
+    response: d.path ? responseLabel(d.path.toUpperCase()) : '—',
+    sequence: S.pathHistory.length > 1 ? S.pathHistory.map(responseLabel).join(' → ') : '',
+    refusalRepeats: d.refusalRepeats > 0 ? d.refusalRepeats : 0,
+    site: si ? siteText(si) : '',
+    afterHours: d.afterHours ? 'Facility closed. Test scheduled for the next day — ' + (d.ahTime || '—') + ' at ' + (si ? si.name + (si.address ? ', ' + si.address : '') : '—') + '. Employee instructed to report then and provide proof of testing before returning to work.' : '',
+    police: d.policeCalled ? 'Yes' : 'No',
+    start: fmtDT(firstISO), end: fmtDT(lastISO), generated: fmtDT(d.generatedISO || new Date().toISOString()),
+    signs: d.signs.slice(), otherObs: d.otherObs, witnessObs: d.witnessObs,
+    outcome: d.outcome || '—',
+    reversals: S.log.filter(e => e.reversal).length,
+    log: S.log.map(e => ({ when: fmtDT(e.iso), text: e.text, reversed: !!e.reversed, reversal: !!e.reversal }))
+  };
+}
+
+// Inline styles and table layout on purpose: Outlook ignores most modern CSS.
+function recordHTML() {
+  const m = recordModel();
+  const e = esc;
+  const br = s => esc(s).replace(/\r?\n/g, '<br>');
+  const F = 'font-family:Calibri,Arial,sans-serif;';
+  const td = F + 'font-size:10.5pt;color:#1C1C1E;border:1px solid #BBBBBB;padding:5px 8px;vertical-align:top;';
+  const th = F + 'font-size:10pt;font-weight:bold;color:#1C1C1E;text-align:left;background-color:#EEEEEE;border:1px solid #BBBBBB;padding:5px 8px;';
+  const h = F + 'font-size:12pt;font-weight:bold;color:#1C1C1E;margin:18px 0 6px 0;padding:0 0 2px 0;border-bottom:1px solid #888888;';
+  const p = F + 'font-size:10.5pt;color:#1C1C1E;margin:0 0 8px 0;line-height:1.4;';
+  const tbl = '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;width:100%;">';
+  const kv = (k, v) => '<tr><td style="' + td + 'background-color:#F5F5F5;font-weight:bold;width:34%;">' + e(k) + '</td><td style="' + td + '">' + e(v) + '</td></tr>';
+
+  let html = '';
+  html += '<p style="' + p + 'font-weight:bold;color:#9E0D23;letter-spacing:0.5px;">CONFIDENTIAL — MANAGEMENT AND HR USE ONLY</p>';
+  html += '<p style="' + p + '">Please find below the documented record of a reasonable suspicion incident that took place on ' + e(m.dateLong) + ' at ' + e(m.location) + '. The record was generated by the Reasonable Suspicion Process Guide, and each time stamp shows when that step was recorded.</p>';
+
+  html += '<p style="' + h + '">Incident Summary</p>';
+  let rows = '';
+  rows += kv('Date of Incident', m.dateLong);
+  rows += kv('Location', m.location);
+  rows += kv('Employee', m.employee);
+  rows += kv('Initiating Manager', m.manager);
+  rows += kv('Witnessing Manager', m.witness);
+  rows += kv('DM/HR Contacted Before Conversation', m.dm);
+  rows += kv('Employee Response to Testing Request', m.response);
+  if (m.sequence) rows += kv('Sequence of Responses', m.sequence);
+  if (m.refusalRepeats) rows += kv('Refusal Statement Read', m.refusalRepeats + (m.refusalRepeats === 1 ? ' time' : ' times'));
+  if (m.site) rows += kv('Testing Site', m.site);
+  if (m.afterHours) rows += kv('After-Hours Protocol', m.afterHours);
+  rows += kv('Law Enforcement Contacted', m.police);
+  if (m.reversals) rows += kv('Steps Reversed', m.reversals + (m.reversals === 1 ? ' time' : ' times') + ' (marked in the chronological record below)');
+  rows += kv('Process Started', m.start);
+  rows += kv('Process Completed', m.end);
+  rows += kv('Outcome', m.outcome);
+  html += tbl + rows + '</table>';
+
+  html += '<p style="' + h + '">Basis for Reasonable Suspicion</p>';
+  html += '<p style="' + p + '"><strong>Signs observed by ' + e(m.manager) + ' (initiating manager):</strong></p>';
+  html += m.signs.length
+    ? '<ul style="' + p + 'margin:0 0 8px 22px;padding:0;">' + m.signs.map(s => '<li style="' + p + 'margin:0 0 2px 0;">' + e(s) + '</li>').join('') + '</ul>'
+    : '<p style="' + p + '">None selected from the checklist; see notes below.</p>';
+  if (m.otherObs) html += '<p style="' + p + '"><strong>Additional notes:</strong> ' + br(m.otherObs) + '</p>';
+  html += '<p style="' + p + '"><strong>Corroboration:</strong> ' + e(m.witness) + ' (second manager) independently observed the employee.' + (m.witnessObs ? ' Witness notes: ' + br(m.witnessObs) : '') + '</p>';
+
+  html += '<p style="' + h + '">Chronological Record of Actions</p>';
+  if (m.reversals) html += '<p style="' + p + '">Entries marked [Reversed] were undone by the manager during the process. They are kept so the record is complete.</p>';
+  html += tbl + '<tr><td style="' + th + 'width:26%;">Date / Time</td><td style="' + th + '">Action</td></tr>'
+    + m.log.map(r => {
+        const cell = r.reversed ? td + 'color:#777777;' : r.reversal ? td + 'background-color:#FFF8E1;font-weight:bold;' : td;
+        const txt = r.reversed ? '<span style="text-decoration:line-through;">' + e(r.text) + '</span> <strong>[Reversed]</strong>' : e(r.text);
+        return '<tr><td style="' + cell + 'white-space:nowrap;">' + e(r.when) + '</td><td style="' + cell + '">' + txt + '</td></tr>';
+      }).join('')
+    + '</table>';
+
+  html += '<p style="' + p + 'margin-top:14px;font-size:9.5pt;color:#555555;">Prepared by ' + e(m.manager) + ' on ' + e(m.generated) + ' using the Reasonable Suspicion Process Guide. This record contains confidential personnel information and is intended for Management and HR use only.</p>';
+  return html;
+}
+
+function recordText() {
+  const m = recordModel();
+  const L = [];
+  const row = (k, v) => L.push(k + ': ' + v);
+  L.push('CONFIDENTIAL — MANAGEMENT AND HR USE ONLY', '');
+  L.push('Please find below the documented record of a reasonable suspicion incident that took place on ' + m.dateLong + ' at ' + m.location + '. The record was generated by the Reasonable Suspicion Process Guide, and each time stamp shows when that step was recorded.', '');
+  L.push('INCIDENT SUMMARY', '-'.repeat(40));
+  row('Date of Incident', m.dateLong);
+  row('Location', m.location);
+  row('Employee', m.employee);
+  row('Initiating Manager', m.manager);
+  row('Witnessing Manager', m.witness);
+  row('DM/HR Contacted Before Conversation', m.dm);
+  row('Employee Response to Testing Request', m.response);
+  if (m.sequence) row('Sequence of Responses', m.sequence);
+  if (m.refusalRepeats) row('Refusal Statement Read', m.refusalRepeats + (m.refusalRepeats === 1 ? ' time' : ' times'));
+  if (m.site) row('Testing Site', m.site);
+  if (m.afterHours) row('After-Hours Protocol', m.afterHours);
+  row('Law Enforcement Contacted', m.police);
+  if (m.reversals) row('Steps Reversed', m.reversals + (m.reversals === 1 ? ' time' : ' times') + ' (marked in the chronological record below)');
+  row('Process Started', m.start);
+  row('Process Completed', m.end);
+  row('Outcome', m.outcome);
+  L.push('', 'BASIS FOR REASONABLE SUSPICION', '-'.repeat(40));
+  L.push('Signs observed by ' + m.manager + ' (initiating manager):');
+  if (m.signs.length) m.signs.forEach(s => L.push('  - ' + s)); else L.push('  None selected from the checklist; see notes below.');
+  if (m.otherObs) L.push('Additional notes: ' + m.otherObs);
+  L.push('Corroboration: ' + m.witness + ' (second manager) independently observed the employee.' + (m.witnessObs ? ' Witness notes: ' + m.witnessObs : ''));
+  L.push('', 'CHRONOLOGICAL RECORD OF ACTIONS', '-'.repeat(40));
+  if (m.reversals) L.push('Entries marked [REVERSED] were undone by the manager during the process. They are kept so the record is complete.');
+  m.log.forEach(r => L.push('[' + r.when + '] ' + (r.reversed ? '[REVERSED] ' : '') + r.text));
+  L.push('', 'Prepared by ' + m.manager + ' on ' + m.generated + ' using the Reasonable Suspicion Process Guide. This record contains confidential personnel information and is intended for Management and HR use only.');
+  return L.join('\n');
+}
+
+function copyText(txt, done) {
+  const fallback = () => {
     const ta = document.createElement('textarea');
     ta.value = txt; document.body.appendChild(ta); ta.select();
-    document.execCommand('copy'); document.body.removeChild(ta);
-    alert('Record copied. Paste it into an email to HR.');
-  });
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    done();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fallback); else fallback();
+}
+
+// Copies rich text (what Outlook needs for tables and bold) with a plain-text backup.
+function copyEmailBody() {
+  const html = '<div style="font-family:Calibri,Arial,sans-serif;">' + recordHTML() + '</div>';
+  const text = recordText();
+  const done = () => alert('Email body copied. Open a new email, paste it into the body, then use "Copy Subject Line" for the subject.');
+  const viaSelection = () => {
+    try {
+      const box = document.createElement('div');
+      box.contentEditable = 'true';
+      box.style.cssText = 'position:fixed;left:-9999px;top:0;';
+      box.innerHTML = html;
+      document.body.appendChild(box);
+      const range = document.createRange(); range.selectNodeContents(box);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      const ok = document.execCommand('copy');
+      sel.removeAllRanges(); document.body.removeChild(box);
+      if (ok) { done(); return; }
+    } catch (e) {}
+    copyText(text, done);
+  };
+  if (navigator.clipboard && window.ClipboardItem) {
+    navigator.clipboard.write([new ClipboardItem({
+      'text/html': new Blob([html], { type: 'text/html' }),
+      'text/plain': new Blob([text], { type: 'text/plain' })
+    })]).then(done, viaSelection);
+  } else {
+    viaSelection();
+  }
+}
+
+function copySubject() {
+  copyText(emailSubject(), () => alert('Subject line copied.'));
+}
+
+function printRecord() {
+  const prev = document.title;
+  const first = S.log.length ? new Date(S.log[0].iso) : new Date();
+  const ymd = first.getFullYear() + '-' + String(first.getMonth() + 1).padStart(2, '0') + '-' + String(first.getDate()).padStart(2, '0');
+  document.title = 'RS Incident Record - ' + employeeLastFirst().replace(/[^\w ,.\-]/g, '') + ' - ' + ymd;
+  window.print();
+  setTimeout(() => { document.title = prev; }, 1000);
+}
+
+function newIncident() {
+  if (confirm('Start a new incident? Make sure you have copied or printed this record first — it will be cleared.')) {
+    clearSaved();
+    location.reload();
+  }
 }
 
 // ============================================================
 // INIT
 // ============================================================
-document.addEventListener('DOMContentLoaded', () => { renderLog(); render(); });
+function showRestore(saved) {
+  const started = saved.log && saved.log[0] ? fmtDT(saved.log[0].iso) : '';
+  document.getElementById('stage').innerHTML = `
+    <div class="card">
+      <div class="phase-label pre">Incident Still Open</div>
+      <h2>Resume the incident you were working on?</h2>
+      <p class="lead">An incident for <strong>${esc(saved.data.employee) || 'an employee'}</strong> was started ${esc(started)} and is still saved in this browser tab. It is kept in this tab only and clears when the tab is closed.</p>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="resumeSaved()">Resume Incident <span class="arrow">&#8594;</span></button>
+        <button class="btn btn-neutral" onclick="discardSaved()">Discard It and Start a New Incident</button>
+      </div>
+    </div>`;
+}
+function resumeSaved() {
+  const s = PENDING; PENDING = null;
+  if (!s) return;
+  S.step = s.step;
+  S.pathHistory = s.pathHistory || [];
+  S.log = s.log || [];
+  S.data = Object.assign(S.data, s.data);
+  S.stack = s.stack || [];
+  renderLog();
+  render();
+}
+function discardSaved() {
+  PENDING = null;
+  clearSaved();
+  renderLog();
+  render();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = loadSaved();
+  if (saved && saved.data && saved.step && saved.step !== 'setup' && saved.log && saved.log.length) {
+    PENDING = saved;
+    renderLog();
+    showRestore(saved);
+  } else {
+    renderLog();
+    render();
+  }
+});
 </script>
 </body>
 </html>
