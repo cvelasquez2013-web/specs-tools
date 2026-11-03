@@ -57,6 +57,17 @@
 
   .site-detail { background: var(--green-bg); border: 1px solid var(--green-border); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--slate); line-height: 1.6; margin-bottom: 14px; }
   .site-detail strong { color: var(--charcoal); }
+  .rec-banner { background: var(--green-bg); border: 1px solid var(--green-border); border-radius: 8px; padding: 10px 14px; font-size: 13.5px; line-height: 1.55; margin-bottom: 12px; color: var(--charcoal); }
+  .badge-rec { display: inline-block; background: var(--green); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: 1px; }
+  .st { font-size: 12.5px; font-weight: 700; margin-top: 2px; }
+  .st-open { color: var(--green); }
+  .st-soon { color: #9A6B00; }
+  .st-closed { color: #B3261E; }
+  .st-unk { color: var(--mid); }
+  .sc-links { font-size: 12.5px; margin-top: 4px; }
+  .sc-links a, .site-detail a, .near-links a { color: #1A5FB4; text-decoration: underline; }
+  .sc-note { color: var(--mid); }
+  .near-links { font-size: 12.5px; color: var(--mid); line-height: 1.6; margin: 2px 0 14px; }
   .near-head { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--mid); margin: 4px 0 8px; }
   .site-card { border: 2px solid var(--border, #d8d8d8); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; cursor: pointer; background: #fff; font-size: 14px; line-height: 1.5; }
   .site-card:hover, .site-card:focus { border-color: var(--green-border); outline: none; }
@@ -206,10 +217,10 @@ const S = {
   data: {
     manager: '', witness: '', employee: '', employeeLast: '', employeeId: '', location: '',
     signs: [], otherObs: '', witnessObs: '',
-    dmContact: '', dmApproved: false,
+    dmContact: '', dmName: '', dmRole: '', dmApproved: false,
     refusalRepeats: 0,
     policeCalled: false,
-    siteStore: '', siteStoreOther: '', siteStoreTouched: false, siteChoice: '', siteOtherName: '', siteOtherPhone: '', siteOtherApprover: '',
+    storeNum: '', siteStore: '', siteStoreOther: '', siteStoreTouched: false, siteChoice: '', siteOtherName: '', siteOtherPhone: '', siteOtherApprover: '',
     ahTime: '', afterHours: false,
     outcome: '', path: '', generatedISO: ''
   },
@@ -355,114 +366,671 @@ function esc(t) {
 function name() { return esc(S.data.employee) || 'the employee'; }
 
 // ============================================================
-// APPROVED TESTING SITES
+// STORES AND APPROVED TESTING SITES
 // ============================================================
-// Every Concentra and every CareNow location is approved (see BRAND_OPTIONS below).
-// APPROVED_SITES holds the specific locations managers can pick from, with phone and hours.
+// STORES: every store from the current Stores Report (n = store number).
+//   To add or change a store, edit one line. tz is the store's time zone (El Paso is Mountain).
 //
-// To add a provider, copy one line in APPROVED_SITES and change it:
+// Every Concentra and every CareNow location is approved (see BRAND_OPTIONS below).
+// APPROVED_SITES holds the specific locations managers can pick from.
 //   id:      short unique key, no spaces
 //   name:    provider / brand
 //   address: street, city, state, zip
-//   phone:   front-desk number(s), so the manager can confirm the site is open
-//   hours:   posted hours
+//   phone:   front-desk number(s). Blank means unknown, so the app points the manager to the Maps link
+//   hours:   listed hours, e.g. "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm". Blank means not listed.
+//            Use "Mon-Sun 8am-Midnight" style for late closes. The app reads this text to show open / closed.
 //   area:    city, used to group the dropdown
-// To show a store's nearest sites first, add it to STORE_NEAREST: 'store number': [['site id', miles], ...]
+//   src:     'spec' = from Spec's in-network provider list, 'listing' = from public provider listings (confirm by phone)
+// STORE_NEAREST: 'store number': [[site id, miles], [site id, miles, 1], ...]
+//   A third value of 1 means the miles are an estimate from ZIP codes, not a driving distance.
+
+const STORES = [
+  { n: "000", name: "Houston Superstore", chain: "Spec's", addr: "2410 Smith Street", city: "Houston", zip: "77006", region: "Region 2 - Southeast", district: "District 00", tz: "America/Chicago" },
+  { n: "001", name: "Kingwood", chain: "Spec's", addr: "1420 Kingwood Drive", city: "Kingwood", zip: "77339", region: "Region 1 - Southeast", district: "District 02", tz: "America/Chicago" },
+  { n: "002", name: "Kirkwood", chain: "Spec's", addr: "11990 Westheimer", city: "Houston", zip: "77077", region: "Region 2 - Southeast", district: "District 26", tz: "America/Chicago" },
+  { n: "003", name: "Sugar Land First Colony", chain: "Spec's", addr: "3335 Hwy 6 South", city: "Sugar Land", zip: "77478", region: "Region 2 - Southeast", district: "District 28", tz: "America/Chicago" },
+  { n: "004", name: "Kuykendahl", chain: "Spec's", addr: "13313 Kuykendahl", city: "Houston", zip: "77090", region: "Region 1 - Southeast", district: "District 02", tz: "America/Chicago" },
+  { n: "005", name: "Old Farm Rd", chain: "Spec's", addr: "8102 Westheimer", city: "Houston", zip: "77063", region: "Region 2 - Southeast", district: "District 26", tz: "America/Chicago" },
+  { n: "006", name: "Bay Area Blvd", chain: "Spec's", addr: "1033 Bay Area Blvd", city: "Clear Lake City", zip: "77062", region: "Region 2 - Southeast", district: "District 29", tz: "America/Chicago" },
+  { n: "007", name: "Rock Prairie Crossing", chain: "Spec's", addr: "3505 Longmire Drive, Suite G", city: "College Station", zip: "77845", region: "Region 1 - Southeast", district: "District 03", tz: "America/Chicago" },
+  { n: "008", name: "Mason Rd", chain: "Spec's", addr: "1640 South Mason Rd", city: "Katy", zip: "77450", region: "Region 2 - Southeast", district: "District 25", tz: "America/Chicago" },
+  { n: "009", name: "Huffmeister", chain: "Spec's", addr: "8945 Hwy 6 N", city: "Houston", zip: "77095", region: "Region 1 - Southeast", district: "District 04", tz: "America/Chicago" },
+  { n: "010", name: "Seabrook", chain: "Spec's", addr: "3126 Nasa Parkway", city: "Seabrook", zip: "77586", region: "Region 2 - Southeast", district: "District 27", tz: "America/Chicago" },
+  { n: "011", name: "North Lamar", chain: "Spec's", addr: "914 North Lamar", city: "Austin", zip: "78703", region: "Region 4 - Central", district: "District 42", tz: "America/Chicago" },
+  { n: "012", name: "Memorial", chain: "Spec's", addr: "14635 Memorial", city: "Houston", zip: "77079", region: "Region 2 - Southeast", district: "District 25", tz: "America/Chicago" },
+  { n: "013", name: "Park Row", chain: "Spec's", addr: "1743 Fry Road", city: "Katy", zip: "77449", region: "Region 1 - Southeast", district: "District 01", tz: "America/Chicago" },
+  { n: "014", name: "Louetta/Klein", chain: "Spec's", addr: "7314 Louetta, Suite A1", city: "Spring", zip: "77379", region: "Region 1 - Southeast", district: "District 03", tz: "America/Chicago" },
+  { n: "015", name: "Rayford Sawdust", chain: "Spec's", addr: "25010 IH 45 N", city: "Spring", zip: "77386", region: "Region 1 - Southeast", district: "District 01", tz: "America/Chicago" },
+  { n: "016", name: "League City", chain: "Spec's", addr: "196 Gulf Freeway South", city: "League City", zip: "77573", region: "Region 2 - Southeast", district: "District 29", tz: "America/Chicago" },
+  { n: "017", name: "Allen", chain: "Spec's", addr: "1839 N Central Expressway", city: "Allen", zip: "75013", region: "Region 3 - North", district: "District 38", tz: "America/Chicago" },
+  { n: "019", name: "Jones Road", chain: "Spec's", addr: "17414 NW Freeway", city: "Jersey Village", zip: "77040", region: "Region 1 - Southeast", district: "District 04", tz: "America/Chicago" },
+  { n: "020", name: "Woodforest", chain: "Spec's", addr: "14650 Woodforest", city: "Houston", zip: "77015", region: "Region 1 - Southeast", district: "District 02", tz: "America/Chicago" },
+  { n: "021", name: "Holcombe", chain: "Spec's", addr: "2314 West Holcombe Blvd", city: "Houston", zip: "77030", region: "Region 2 - Southeast", district: "District 00", tz: "America/Chicago" },
+  { n: "022", name: "Atascocita", chain: "Spec's", addr: "7034 FM 1960 East", city: "Atascocita", zip: "77346", region: "Region 1 - Southeast", district: "District 02", tz: "America/Chicago" },
+  { n: "023", name: "Houston Galleria", chain: "Spec's", addr: "5130 Richmond", city: "Houston", zip: "77056", region: "Region 2 - Southeast", district: "District 26", tz: "America/Chicago" },
+  { n: "024", name: "Fountain View", chain: "Spec's", addr: "2020 Fountain View Drive", city: "Houston", zip: "77057", region: "Region 2 - Southeast", district: "District 26", tz: "America/Chicago" },
+  { n: "025", name: "Willis", chain: "Spec's", addr: "9618 FM 1097", city: "Willis", zip: "77318", region: "Region 1 - Southeast", district: "District 02", tz: "America/Chicago" },
+  { n: "027", name: "Belterra/Dripping Springs", chain: "Spec's", addr: "166 Hargraves, #B-400", city: "Austin", zip: "78737", region: "Region 4 - Central", district: "District 47", tz: "America/Chicago" },
+  { n: "028", name: "North Louetta", chain: "Spec's", addr: "1614 Louetta", city: "Spring", zip: "77388", region: "Region 1 - Southeast", district: "District 02", tz: "America/Chicago" },
+  { n: "029", name: "Sterling Ridge", chain: "Spec's", addr: "10491 Kuykendahl", city: "The Woodlands", zip: "77382", region: "Region 1 - Southeast", district: "District 04", tz: "America/Chicago" },
+  { n: "030", name: "Conroe Loop 336", chain: "Spec's", addr: "1420 N Loop 336 West, Suite 100", city: "Conroe", zip: "77304", region: "Region 1 - Southeast", district: "District 04", tz: "America/Chicago" },
+  { n: "031", name: "Beaumont", chain: "Spec's", addr: "5876 Eastex Freeway", city: "Beaumont", zip: "77708", region: "Region 1 - Southeast", district: "District 02", tz: "America/Chicago" },
+  { n: "032", name: "Kemah", chain: "Spec's", addr: "243 FM 2094, Suite U", city: "Clear Lake Shores", zip: "77565", region: "Region 2 - Southeast", district: "District 27", tz: "America/Chicago" },
+  { n: "033", name: "FM 1488", chain: "Spec's", addr: "3588 FM 1488", city: "Conroe", zip: "77304", region: "Region 1 - Southeast", district: "District 04", tz: "America/Chicago" },
+  { n: "034", name: "West Davis -Conroe", chain: "Spec's", addr: "1304 West Davis, Suite F", city: "Conroe", zip: "77304", region: "Region 1 - Southeast", district: "District 04", tz: "America/Chicago" },
+  { n: "035", name: "Galveston", chain: "Spec's", addr: "2711 61st Street", city: "Galveston", zip: "77551", region: "Region 2 - Southeast", district: "District 29", tz: "America/Chicago" },
+  { n: "036", name: "Baytown", chain: "Spec's", addr: "4665 Garth Road, Suite 800", city: "Baytown", zip: "77521", region: "Region 2 - Southeast", district: "District 27", tz: "America/Chicago" },
+  { n: "037", name: "College Station", chain: "Spec's", addr: "1729 Texas Avenue South", city: "College Station", zip: "77840", region: "Region 1 - Southeast", district: "District 03", tz: "America/Chicago" },
+  { n: "038", name: "Bastrop", chain: "Spec's", addr: "739 Highway 71 West, Suite F", city: "Bastrop", zip: "78602", region: "Region 4 - Central", district: "District 47", tz: "America/Chicago" },
+  { n: "039", name: "Rosenberg", chain: "Spec's", addr: "4102 FM 762", city: "Rosenberg", zip: "77469", region: "Region 2 - Southeast", district: "District 28", tz: "America/Chicago" },
+  { n: "040", name: "Bear Creek", chain: "Spec's", addr: "4820 Hwy 6 N", city: "Houston", zip: "77084", region: "Region 1 - Southeast", district: "District 01", tz: "America/Chicago" },
+  { n: "041", name: "Cinco Ranch", chain: "Spec's", addr: "3050 W Grand Parkway South", city: "Katy", zip: "77494", region: "Region 2 - Southeast", district: "District 25", tz: "America/Chicago" },
+  { n: "042", name: "SW Freeway", chain: "Spec's", addr: "8306 Southwest Freeway", city: "Houston", zip: "77074", region: "Region 2 - Southeast", district: "District 26", tz: "America/Chicago" },
+  { n: "043", name: "Sugar Creek", chain: "Spec's", addr: "13827 Southwest Freeway", city: "Sugar Land", zip: "77478", region: "Region 2 - Southeast", district: "District 28", tz: "America/Chicago" },
+  { n: "044", name: "Huntsville", chain: "Spec's", addr: "207 Interstate 45 South", city: "Huntsville", zip: "77340", region: "Region 1 - Southeast", district: "District 04", tz: "America/Chicago" },
+  { n: "045", name: "Almeda", chain: "Spec's", addr: "11130 Gulf Freeway, Suite 500", city: "Houston", zip: "77034", region: "Region 2 - Southeast", district: "District 27", tz: "America/Chicago" },
+  { n: "046", name: "Pearland", chain: "Spec's", addr: "10555 Pearland Pkwy, Suite I", city: "Houston", zip: "77089", region: "Region 2 - Southeast", district: "District 29", tz: "America/Chicago" },
+  { n: "047", name: "Missouri City", chain: "Spec's", addr: "5418 Highway 6, Suite 116-212", city: "Missouri City", zip: "77489", region: "Region 2 - Southeast", district: "District 28", tz: "America/Chicago" },
+  { n: "048", name: "Barker Cypress", chain: "Spec's", addr: "17996 FM 529", city: "Cypress", zip: "77095", region: "Region 1 - Southeast", district: "District 01", tz: "America/Chicago" },
+  { n: "049", name: "Town And Country", chain: "Spec's", addr: "12901 Queensbury", city: "Houston", zip: "77079", region: "Region 2 - Southeast", district: "District 25", tz: "America/Chicago" },
+  { n: "051", name: "N Fry Road", chain: "Spec's", addr: "3811 N Fry Road", city: "Katy", zip: "77449", region: "Region 1 - Southeast", district: "District 01", tz: "America/Chicago" },
+  { n: "052", name: "Friendswood", chain: "Spec's", addr: "3126 FM 528", city: "Webster", zip: "77598", region: "Region 2 - Southeast", district: "District 27", tz: "America/Chicago" },
+  { n: "053", name: "Spring Valley", chain: "Spec's", addr: "8416 Katy Freeway", city: "Spring Valley", zip: "77024", region: "Region 1 - Southeast", district: "District 01", tz: "America/Chicago" },
+  { n: "055", name: "Cypress Rosehill", chain: "Spec's", addr: "14315 Cypress Rosehill, Suite 140", city: "Cypress", zip: "77429", region: "Region 1 - Southeast", district: "District 01", tz: "America/Chicago" },
+  { n: "056", name: "Spring Cypress", chain: "Spec's", addr: "22508 Hwy 249", city: "Houston", zip: "77070", region: "Region 1 - Southeast", district: "District 01", tz: "America/Chicago" },
+  { n: "057", name: "CS University Drive", chain: "Spec's", addr: "1505 University Suite 700", city: "College Station", zip: "77840", region: "Region 1 - Southeast", district: "District 03", tz: "America/Chicago" },
+  { n: "058", name: "Hymeadow", chain: "Spec's", addr: "12611 Hymeadow", city: "Austin", zip: "78729", region: "Region 4 - Central", district: "District 42", tz: "America/Chicago" },
+  { n: "059", name: "Memorial @Knox", chain: "Spec's", addr: "5818 Memorial", city: "Houston", zip: "77007", region: "Region 2 - Southeast", district: "District 00", tz: "America/Chicago" },
+  { n: "060", name: "Highland Park", chain: "Spec's", addr: "5775 Airport Blvd, Ste 100", city: "Austin", zip: "78752", region: "Region 4 - Central", district: "District 42", tz: "America/Chicago" },
+  { n: "061", name: "Brodie Lane Superstore", chain: "Spec's", addr: "4970 Highway 290 West", city: "Austin", zip: "78735", region: "Region 4 - Central", district: "District 42", tz: "America/Chicago" },
+  { n: "062", name: "Arbor Walk", chain: "Spec's", addr: "10515 N Mopac Express, Suite K", city: "Austin", zip: "78759", region: "Region 4 - Central", district: "District 47", tz: "America/Chicago" },
+  { n: "063", name: "Round Rock", chain: "Spec's", addr: "201 University Oaks Blvd, Suite 600", city: "Round Rock", zip: "78664", region: "Region 4 - Central", district: "District 47", tz: "America/Chicago" },
+  { n: "064", name: "South Park Meadows", chain: "Spec's", addr: "9900 IH-35 Service Road S, Bldg G", city: "Austin", zip: "78748", region: "Region 4 - Central", district: "District 42", tz: "America/Chicago" },
+  { n: "065", name: "Bee Cave", chain: "Spec's", addr: "13015 Shops Parkway", city: "Bee Cave", zip: "78738", region: "Region 4 - Central", district: "District 47", tz: "America/Chicago" },
+  { n: "066", name: "Temple", chain: "Spec's", addr: "3550 S. General Bruce Dr., A182", city: "Temple", zip: "76504", region: "Region 4 - Central", district: "District 47", tz: "America/Chicago" },
+  { n: "067", name: "Victoria", chain: "Spec's", addr: "5108 N. Navarro", city: "Victoria", zip: "77904", region: "Region 4 - Central", district: "District 40", tz: "America/Chicago" },
+  { n: "068", name: "South Padre Island Drive", chain: "Spec's", addr: "5625 South Padre Island Drive", city: "Corpus Christi", zip: "78412", region: "Region 5 - South", district: "District 54", tz: "America/Chicago" },
+  { n: "069", name: "Live Oak/ Selma", chain: "Spec's", addr: "14623 Interstate 35 N", city: "Live Oak", zip: "78233", region: "Region 4 - Central", district: "District 40", tz: "America/Chicago" },
+  { n: "071", name: "Weslayan", chain: "Spec's", addr: "3902 Bissonnet", city: "Houston", zip: "77005", region: "Region 2 - Southeast", district: "District 27", tz: "America/Chicago" },
+  { n: "073", name: "Waco", chain: "Spec's", addr: "1434 South Valley Mills Drive", city: "Waco", zip: "76711", region: "Region 6 - Fort Worth", district: "District 60", tz: "America/Chicago" },
+  { n: "074", name: "Kerrville", chain: "Spec's", addr: "1305 Sidney Baker, Unit F", city: "Kerrville", zip: "78028", region: "Region 4 - Central", district: "District 41", tz: "America/Chicago" },
+  { n: "075", name: "Killeen", chain: "Spec's", addr: "2500 E Central Texas Expressway", city: "Killeen", zip: "76543", region: "Region 4 - Central", district: "District 47", tz: "America/Chicago" },
+  { n: "076", name: "Elgin", chain: "Spec's", addr: "1100 Highway 290 East", city: "Elgin", zip: "78621", region: "Region 4 - Central", district: "District 47", tz: "America/Chicago" },
+  { n: "077", name: "Four Points", chain: "Spec's", addr: "10601 N FM 620 SUITE, SUITE 107", city: "Austin", zip: "78726", region: "Region 4 - Central", district: "District 47", tz: "America/Chicago" },
+  { n: "078", name: "McAllen Trenton & 10Th", chain: "Spec's", addr: "7700 N. 10TH STREET, SUITE C", city: "McAllen", zip: "78504", region: "Region 5 - South", district: "District 53", tz: "America/Chicago" },
+  { n: "079", name: "Robstown", chain: "Spec's", addr: "15540 FM 624", city: "Robstown", zip: "78380", region: "Region 5 - South", district: "District 54", tz: "America/Chicago" },
+  { n: "080", name: "Wichita Falls", chain: "Spec's", addr: "4319 Kemp Blvd, Suite C", city: "Wichita Falls", zip: "76308", region: "Region 6 - Fort Worth", district: "District 62", tz: "America/Chicago" },
+  { n: "081", name: "Shepherd", chain: "Spec's", addr: "1900 South Shepherd", city: "Houston", zip: "77019", region: "Region 2 - Southeast", district: "District 29", tz: "America/Chicago" },
+  { n: "082", name: "Richard's Liquors Voss", chain: "Richard's", addr: "1665 South Voss Road", city: "Houston", zip: "77057", region: "Region 2 - Southeast", district: "District 29", tz: "America/Chicago" },
+  { n: "083", name: "Weber", chain: "Spec's", addr: "6401 Weber Road", city: "Corpus Christi", zip: "78415", region: "Region 5 - South", district: "District 54", tz: "America/Chicago" },
+  { n: "084", name: "El Paso East Zaragoza", chain: "Spec's", addr: "2036 N Zaragoza Road, Building C", city: "El Paso", zip: "79938", region: "Region 6 - Fort Worth", district: "District 66", tz: "America/Denver" },
+  { n: "085", name: "Express Flour Bluff", chain: "Spec's", addr: "10529 South Padre Island Dr, Suite 180", city: "Corpus Christi", zip: "78418", region: "Region 5 - South", district: "District 54", tz: "America/Chicago" },
+  { n: "086", name: "Ayers", chain: "Spec's", addr: "4102 Ayers", city: "Corpus Christi", zip: "78415", region: "Region 5 - South", district: "District 54", tz: "America/Chicago" },
+  { n: "087", name: "Yorktown", chain: "Spec's", addr: "7233 Yorktown Blvd", city: "Corpus Christi", zip: "78414", region: "Region 5 - South", district: "District 54", tz: "America/Chicago" },
+  { n: "088", name: "Richard's Liquors Kirby", chain: "Richard's", addr: "2545 Kirby Drive", city: "Houston", zip: "77019", region: "Region 2 - Southeast", district: "District 29", tz: "America/Chicago" },
+  { n: "089", name: "Spring Stuebner", chain: "Spec's", addr: "6603 Spring Stuebner Road, Suite 135", city: "Spring", zip: "77389", region: "Region 1 - Southeast", district: "District 03", tz: "America/Chicago" },
+  { n: "090", name: "Dallas Warehouse", chain: "Spec's", addr: "7777 Hines Place Blvd", city: "Dallas", zip: "75235", region: "", district: "", tz: "America/Chicago" },
+  { n: "091", name: "Claypoint Warehouse", chain: "Spec's", addr: "8830 Clay Road", city: "Houston", zip: "77080", region: "", district: "", tz: "America/Chicago" },
+  { n: "092", name: "W. Bellfort", chain: "Spec's", addr: "19210 W. BELLFORT ST", city: "Richmond", zip: "77407", region: "Region 2 - Southeast", district: "District 25", tz: "America/Chicago" },
+  { n: "093", name: "Brenham", chain: "Spec's", addr: "280 Hwy 290 W", city: "Brenham", zip: "77833", region: "Region 1 - Southeast", district: "District 03", tz: "America/Chicago" },
+  { n: "094", name: "El Paso", chain: "Spec's", addr: "655 Sunland Park Dr, Suite F", city: "El Paso", zip: "79912", region: "Region 6 - Fort Worth", district: "District 66", tz: "America/Denver" },
+  { n: "095", name: "Georgetown", chain: "Spec's", addr: "1013 West University Ave, Suite 200", city: "Georgetown", zip: "78628", region: "Region 4 - Central", district: "District 47", tz: "America/Chicago" },
+  { n: "098", name: "East Southcross", chain: "Spec's", addr: "2920 East Southcross Blvd", city: "San Antonio", zip: "78223", region: "Region 4 - Central", district: "District 40", tz: "America/Chicago" },
+  { n: "100", name: "De Zavala", chain: "Spec's", addr: "5219 De Zavala Road, Suite 101", city: "San Antonio", zip: "78249", region: "Region 4 - Central", district: "District 41", tz: "America/Chicago" },
+  { n: "101", name: "New Territory", chain: "Spec's", addr: "5720 New Territory Blvd", city: "Sugar Land", zip: "77479", region: "Region 2 - Southeast", district: "District 28", tz: "America/Chicago" },
+  { n: "102", name: "Portland", chain: "Spec's", addr: "1247 US 181 Frontage Road", city: "Portland", zip: "78374", region: "Region 5 - South", district: "District 54", tz: "America/Chicago" },
+  { n: "103", name: "New Road", chain: "Spec's", addr: "2335 S New Road", city: "Waco", zip: "76711", region: "Region 6 - Fort Worth", district: "District 60", tz: "America/Chicago" },
+  { n: "104", name: "Alameda", chain: "Spec's", addr: "4200 South Alameda Street", city: "Corpus Christi", zip: "78412", region: "Region 5 - South", district: "District 54", tz: "America/Chicago" },
+  { n: "105", name: "N. Mesa", chain: "Spec's", addr: "7933 N Mesa, Suite A", city: "El Paso", zip: "79932", region: "Region 6 - Fort Worth", district: "District 66", tz: "America/Denver" },
+  { n: "106", name: "Creekside Town Center", chain: "Spec's", addr: "263 Creekside Crossing", city: "New Braunfels", zip: "78130", region: "Region 4 - Central", district: "District 40", tz: "America/Chicago" },
+  { n: "107", name: "Lubbock Slide Road", chain: "Spec's", addr: "6816 Slide Rd, Suite #12", city: "Lubbock", zip: "79424", region: "Region 6 - Fort Worth", district: "District 64", tz: "America/Chicago" },
+  { n: "108", name: "Angleton", chain: "Spec's", addr: "1201 N. Velasco, Suite B", city: "Angleton", zip: "77515", region: "Region 2 - Southeast", district: "District 26", tz: "America/Chicago" },
+  { n: "109", name: "North Conroe", chain: "Spec's", addr: "18434 Hwy 105 West", city: "Conroe", zip: "77356", region: "Region 1 - Southeast", district: "District 04", tz: "America/Chicago" },
+  { n: "110", name: "Vineyard", chain: "Spec's", addr: "1309 N LOOP 1604 W, #109", city: "San Antonio", zip: "78258", region: "Region 4 - Central", district: "District 41", tz: "America/Chicago" },
+  { n: "111", name: "New Braunfels", chain: "Spec's", addr: "1671 IH-35 South, Suite 101", city: "New Braunfels", zip: "78130", region: "Region 4 - Central", district: "District 40", tz: "America/Chicago" },
+  { n: "112", name: "Marble Falls", chain: "Spec's", addr: "2510 Hwy 281 N, Suite 120", city: "Marble Falls", zip: "78654", region: "Region 4 - Central", district: "District 41", tz: "America/Chicago" },
+  { n: "113", name: "Bandera", chain: "Spec's", addr: "11751 Bandera Road", city: "San Antonio", zip: "78250", region: "Region 4 - Central", district: "District 41", tz: "America/Chicago" },
+  { n: "114", name: "San Marcos", chain: "Spec's", addr: "510 Barnes Drive", city: "San Marcos", zip: "78666", region: "Region 4 - Central", district: "District 42", tz: "America/Chicago" },
+  { n: "115", name: "Northwest Hwy", chain: "Spec's", addr: "1613 West Northwest Highway", city: "Dallas", zip: "75220", region: "Region 3 - North", district: "District 31", tz: "America/Chicago" },
+  { n: "116", name: "Westlake", chain: "Spec's", addr: "2341 Highway 377", city: "Westlake", zip: "76262", region: "Region 6 - Fort Worth", district: "District 60", tz: "America/Chicago" },
+  { n: "117", name: "Alamo Ranch", chain: "Spec's", addr: "12211 Culebra Road", city: "San Antonio", zip: "78253", region: "Region 4 - Central", district: "District 40", tz: "America/Chicago" },
+  { n: "118", name: "Feldmans Padre Island", chain: "Feldmans", addr: "4500 Padre Island Hwy", city: "Brownsville", zip: "78526", region: "Region 5 - South", district: "District 52", tz: "America/Chicago" },
+  { n: "119", name: "Harlingen", chain: "Spec's", addr: "822 Dixieland Rd", city: "Harlingen", zip: "78552", region: "Region 5 - South", district: "District 53", tz: "America/Chicago" },
+  { n: "121", name: "Lacy Lakeview", chain: "Spec's", addr: "715 New Dallas Highway", city: "Lacy Lakeview", zip: "76705", region: "Region 6 - Fort Worth", district: "District 60", tz: "America/Chicago" },
+  { n: "122", name: "Feldmans Valleyview", chain: "Feldmans", addr: "3010 N 10th Street", city: "McAllen", zip: "78501", region: "Region 5 - South", district: "District 53", tz: "America/Chicago" },
+  { n: "123", name: "Denton", chain: "Spec's", addr: "2315 Colorado Blvd, Ste 160", city: "Denton", zip: "76205", region: "Region 3 - North", district: "District 37", tz: "America/Chicago" },
+  { n: "124", name: "Tomball Town Center", chain: "Spec's", addr: "28595 Tomball Parkway", city: "Tomball", zip: "77375", region: "Region 1 - Southeast", district: "District 04", tz: "America/Chicago" },
+  { n: "125", name: "Lakeworth", chain: "Spec's", addr: "6704 Lake Worth Blvd.", city: "Lake Worth", zip: "76135", region: "Region 6 - Fort Worth", district: "District 60", tz: "America/Chicago" },
+  { n: "126", name: "Feldmans McAllen", chain: "Feldmans", addr: "100 N. 10th St, Suite B", city: "McAllen", zip: "78501", region: "Region 5 - South", district: "District 53", tz: "America/Chicago" },
+  { n: "127", name: "Dalworthington Gardens", chain: "Spec's", addr: "3200 West Pioneer Parkway", city: "Dalworthington Gardens", zip: "76013", region: "Region 6 - Fort Worth", district: "District 62", tz: "America/Chicago" },
+  { n: "128", name: "Addison", chain: "Spec's", addr: "15055 Inwood Road", city: "Addison", zip: "75001", region: "Region 3 - North", district: "District 31", tz: "America/Chicago" },
+  { n: "129", name: "Schertz", chain: "Spec's", addr: "716 FM 3009", city: "Schertz", zip: "78154", region: "Region 4 - Central", district: "District 40", tz: "America/Chicago" },
+  { n: "131", name: "Feldmans Port Isabel", chain: "Feldmans", addr: "1702 W Queen Isabella Blvd, Ste A", city: "Port Isabel", zip: "78578", region: "Region 5 - South", district: "District 52", tz: "America/Chicago" },
+  { n: "132", name: "Feldmans Sunshine Strip", chain: "Feldmans", addr: "621 Hwy 77 South, Sunshine Strip Boulevard", city: "Harlingen", zip: "78550", region: "Region 5 - South", district: "District 53", tz: "America/Chicago" },
+  { n: "133", name: "Feldmans Padre Blvd", chain: "Feldmans", addr: "410 Padre Boulevard", city: "South Padre Island", zip: "78597", region: "Region 5 - South", district: "District 52", tz: "America/Chicago" },
+  { n: "134", name: "Las Tiendas Plaza", chain: "Spec's", addr: "4350 HWY 77/83 N, Suite D", city: "Brownsville", zip: "78528", region: "Region 5 - South", district: "District 52", tz: "America/Chicago" },
+  { n: "135", name: "Laredo", chain: "Spec's", addr: "5506 San Bernardo, Suite B", city: "Laredo", zip: "78041", region: "Region 5 - South", district: "District 54", tz: "America/Chicago" },
+  { n: "136", name: "Feldmans Pecan Blvd", chain: "Feldmans", addr: "3500 Pecan Blvd", city: "McAllen", zip: "78503", region: "Region 5 - South", district: "District 53", tz: "America/Chicago" },
+  { n: "137", name: "Feldmans Weslaco", chain: "Feldmans", addr: "809 HWY 83 East", city: "Weslaco", zip: "78596", region: "Region 5 - South", district: "District 53", tz: "America/Chicago" },
+  { n: "138", name: "Prosper", chain: "Spec's", addr: "950 S. Preston Road", city: "Prosper", zip: "75078", region: "Region 3 - North", district: "District 38", tz: "America/Chicago" },
+  { n: "139", name: "Katy Mills", chain: "Spec's", addr: "24417 Katy Freeway", city: "Katy", zip: "77494", region: "Region 2 - Southeast", district: "District 25", tz: "America/Chicago" },
+  { n: "140", name: "Fulshear", chain: "Spec's", addr: "24940 FM 1093 Road", city: "Richmond", zip: "77494", region: "Region 2 - Southeast", district: "District 25", tz: "America/Chicago" },
+  { n: "141", name: "East Plano", chain: "Spec's", addr: "3404 N Central Expressway, Ste #100", city: "Plano", zip: "75074", region: "Region 3 - North", district: "District 38", tz: "America/Chicago" },
+  { n: "142", name: "Fat Dogs Coffee City", chain: "Fat Dogs", addr: "7530 State Highway 155", city: "Coffee City", zip: "75763", region: "Region 3 - North", district: "District 35", tz: "America/Chicago" },
+  { n: "143", name: "Sherman", chain: "Spec's", addr: "3606 N Loy Lake Rd", city: "Sherman", zip: "75090", region: "Region 3 - North", district: "District 33", tz: "America/Chicago" },
+  { n: "144", name: "Fat Dogs Big Sandy", chain: "Fat Dogs", addr: "709 West Broadway Street", city: "Big Sandy", zip: "75755", region: "Region 3 - North", district: "District 35", tz: "America/Chicago" },
+  { n: "145", name: "Fat Dogs Troup", chain: "Fat Dogs", addr: "1420 W. Duval Street", city: "Troup", zip: "75789", region: "Region 3 - North", district: "District 35", tz: "America/Chicago" },
+  { n: "146", name: "Fat Dogs Rusk", chain: "Fat Dogs", addr: "366 N Dickinson Drive", city: "Rusk", zip: "75785", region: "Region 3 - North", district: "District 35", tz: "America/Chicago" },
+  { n: "148", name: "Fat Dogs Kilgore", chain: "Fat Dogs", addr: "6731 Hwy 31 West", city: "Kilgore", zip: "75662", region: "Region 3 - North", district: "District 35", tz: "America/Chicago" },
+  { n: "149", name: "Fat Dogs Cuney", chain: "Fat Dogs", addr: "8915 Hwy 175 West", city: "Cuney", zip: "75759", region: "Region 3 - North", district: "District 35", tz: "America/Chicago" },
+  { n: "150", name: "Dallas Superstore", chain: "Spec's", addr: "9500 N Central Expressway, #200", city: "Dallas", zip: "75231", region: "Region 3 - North", district: "District 31", tz: "America/Chicago" },
+  { n: "151", name: "Plano West", chain: "Spec's", addr: "5930 West Park Blvd, Ste #1400", city: "Plano", zip: "75093", region: "Region 3 - North", district: "District 37", tz: "America/Chicago" },
+  { n: "152", name: "Preston Center", chain: "Spec's", addr: "8123 Preston Road", city: "Dallas", zip: "75225", region: "Region 3 - North", district: "District 31", tz: "America/Chicago" },
+  { n: "153", name: "McKinney University Drive", chain: "Spec's", addr: "2900 W University Drive, Suite 100", city: "McKinney", zip: "75071", region: "Region 3 - North", district: "District 38", tz: "America/Chicago" },
+  { n: "154", name: "Hulen", chain: "Spec's", addr: "2750 South Hulen Street", city: "Fort Worth", zip: "76109", region: "Region 6 - Fort Worth", district: "District 62", tz: "America/Chicago" },
+  { n: "155", name: "Eastchase", chain: "Spec's", addr: "1600 Eastchase Parkway, Suite 265", city: "Fort Worth", zip: "76120", region: "Region 6 - Fort Worth", district: "District 62", tz: "America/Chicago" },
+  { n: "156", name: "Marsh Lane", chain: "Spec's", addr: "9972 Marsh Lane", city: "Dallas", zip: "75220", region: "Region 3 - North", district: "District 31", tz: "America/Chicago" },
+  { n: "157", name: "Coit Rd (Mr. G's Deli)", chain: "Spec's", addr: "1453 Coit Road", city: "Plano", zip: "75075", region: "Region 3 - North", district: "District 38", tz: "America/Chicago" },
+  { n: "158", name: "Two Bucks Beverage", chain: "Two Bucks", addr: "4702 South Freeway", city: "Fort Worth", zip: "76115", region: "Region 6 - Fort Worth", district: "District 62", tz: "America/Chicago" },
+  { n: "159", name: "Hebron", chain: "Spec's", addr: "2401 Parker Road", city: "Hebron", zip: "75010", region: "Region 3 - North", district: "District 37", tz: "America/Chicago" },
+  { n: "160", name: "Bryant Irvin", chain: "Spec's", addr: "4720 Bryant Irvin Road", city: "Fort Worth", zip: "76132", region: "Region 6 - Fort Worth", district: "District 62", tz: "America/Chicago" },
+  { n: "161", name: "Lowry Crossing", chain: "Spec's", addr: "4100 East US Highway 380, Ste 100 - 200", city: "Lowry Crossing", zip: "75069", region: "Region 3 - North", district: "District 38", tz: "America/Chicago" },
+  { n: "163", name: "The Colony", chain: "Spec's", addr: "4901 Hwy 121", city: "The Colony", zip: "75056", region: "Region 3 - North", district: "District 37", tz: "America/Chicago" },
+  { n: "164", name: "Granbury", chain: "Spec's", addr: "1150 East Highway 377", city: "Granbury", zip: "76048", region: "Region 6 - Fort Worth", district: "District 62", tz: "America/Chicago" },
+  { n: "165", name: "Arlington", chain: "Spec's", addr: "3909 S. Cooper Street", city: "Arlington", zip: "76015", region: "Region 6 - Fort Worth", district: "District 62", tz: "America/Chicago" },
+  { n: "166", name: "Falcon Landing", chain: "Spec's", addr: "9722 Gaston Rd., Ste 130", city: "Katy", zip: "77494", region: "Region 2 - Southeast", district: "District 25", tz: "America/Chicago" },
+  { n: "167", name: "Lewisville", chain: "Spec's", addr: "2416 S Stemmons Freeway", city: "Lewisville", zip: "75067", region: "Region 3 - North", district: "District 37", tz: "America/Chicago" },
+  { n: "168", name: "Little Elm", chain: "Spec's", addr: "27100 HWY 380", city: "Little Elm", zip: "75068", region: "Region 3 - North", district: "District 37", tz: "America/Chicago" },
+  { n: "169", name: "Stone Oak", chain: "Spec's", addr: "23026 US 281 N, SUITE 103", city: "San Antonio", zip: "78258", region: "Region 4 - Central", district: "District 40", tz: "America/Chicago" },
+  { n: "170", name: "Euless", chain: "Spec's", addr: "900 E Harwood Road", city: "Euless", zip: "76039", region: "Region 6 - Fort Worth", district: "District 60", tz: "America/Chicago" },
+  { n: "171", name: "Ingram Festival", chain: "Spec's", addr: "6065 N. W. LOOP 410, SUITE 115", city: "San Antonio", zip: "78238", region: "Region 4 - Central", district: "District 41", tz: "America/Chicago" },
+  { n: "172", name: "Bay City", chain: "Spec's", addr: "3100A 7TH STREET", city: "Bay City", zip: "77414", region: "Region 2 - Southeast", district: "District 26", tz: "America/Chicago" },
+  { n: "173", name: "Feldmans South Padre Island", chain: "Feldmans", addr: "3500 Padre Blvd", city: "South Padre Island", zip: "78597", region: "Region 5 - South", district: "District 52", tz: "America/Chicago" },
+  { n: "174", name: "Rowlett", chain: "Spec's", addr: "8505 Lakeview Parkway, Ste 320", city: "Rowlett", zip: "75088", region: "Region 3 - North", district: "District 33", tz: "America/Chicago" },
+  { n: "175", name: "Sachse", chain: "Spec's", addr: "8110 Hwy 78", city: "Sachse", zip: "75048", region: "Region 3 - North", district: "District 33", tz: "America/Chicago" },
+  { n: "176", name: "Sienna Plantation", chain: "Spec's", addr: "9034 Sienna Crossing Dr", city: "Missouri City", zip: "77459", region: "Region 2 - Southeast", district: "District 28", tz: "America/Chicago" },
+  { n: "177", name: "McAllen", chain: "Spec's", addr: "2700 West Expressway 83, Building 200, Suite 200", city: "McAllen", zip: "78501", region: "Region 5 - South", district: "District 53", tz: "America/Chicago" },
+  { n: "178", name: "Alliance Town Center", chain: "Spec's", addr: "9564 Citadel Way Drive", city: "Fort Worth", zip: "76177", region: "Region 6 - Fort Worth", district: "District 60", tz: "America/Chicago" },
+  { n: "179", name: "Cedar Park", chain: "Spec's", addr: "13530 Ronald Regan Blvd., Suite 100", city: "Cedar Park", zip: "78613", region: "Region 4 - Central", district: "District 42", tz: "America/Chicago" },
+  { n: "180", name: "Gateway North", chain: "Spec's", addr: "10640 Gateway North Blvd, Suite A", city: "El Paso", zip: "79924", region: "Region 6 - Fort Worth", district: "District 66", tz: "America/Denver" },
+  { n: "181", name: "Doc's Wolfforth", chain: "Doc's", addr: "641 Hwy 62/82 East", city: "Wolfforth", zip: "79382", region: "Region 6 - Fort Worth", district: "District 64", tz: "America/Chicago" },
+  { n: "184", name: "Doc's Quaker (Liquor Only)", chain: "Doc's", addr: "7021 Quaker Avenue, SPC 100", city: "Lubbock", zip: "79424", region: "Region 6 - Fort Worth", district: "District 64", tz: "America/Chicago" },
+  { n: "185", name: "Doc's Quaker (Beer & Wine Only)", chain: "Doc's", addr: "7021 Quaker Avenue, SPC 200", city: "Lubbock", zip: "79424", region: "Region 6 - Fort Worth", district: "District 64", tz: "America/Chicago" },
+  { n: "186", name: "Gosling Rd Spring", chain: "Spec's", addr: "24527 Gosling Rd., Bldg C, Suite C-101", city: "Spring", zip: "77389", region: "Region 1 - Southeast", district: "District 03", tz: "America/Chicago" },
+  { n: "187", name: "Terrell", chain: "Spec's", addr: "535 American Way", city: "Terrell", zip: "75160", region: "Region 3 - North", district: "District 33", tz: "America/Chicago" },
+  { n: "188", name: "Legacy", chain: "Spec's", addr: "2003 Loop 1604 North East, Suite 111", city: "San Antonio", zip: "78232", region: "Region 4 - Central", district: "District 40", tz: "America/Chicago" },
+  { n: "189", name: "Buffalo Speedway", chain: "Spec's", addr: "9733 Buffalo Speedway", city: "Houston", zip: "77025", region: "Region 2 - Southeast", district: "District 26", tz: "America/Chicago" },
+  { n: "190", name: "Renner Rd", chain: "Spec's", addr: "3371 Renner Road", city: "Plano", zip: "75074", region: "Region 3 - North", district: "District 33", tz: "America/Chicago" },
+  { n: "191", name: "Cedar Hill", chain: "Spec's", addr: "971 N Highway 67, Ste 400", city: "Cedar Hill", zip: "75104", region: "Region 3 - North", district: "District 31", tz: "America/Chicago" },
+  { n: "192", name: "Porter", chain: "Spec's", addr: "23611 Highway 59, Ste 500", city: "Porter", zip: "77365", region: "Region 1 - Southeast", district: "District 02", tz: "America/Chicago" },
+  { n: "193", name: "Giddings", chain: "Spec's", addr: "1920 E AUSTIN ST", city: "Giddings", zip: "78942", region: "Region 1 - Southeast", district: "District 03", tz: "America/Chicago" },
+  { n: "194", name: "San Antonio Dominion", chain: "Spec's", addr: "24603 IH 10 West", city: "San Antonio", zip: "78257", region: "Region 4 - Central", district: "District 41", tz: "America/Chicago" },
+  { n: "195", name: "Weatherford", chain: "Spec's", addr: "106 Cleburne Avenue", city: "Weatherford", zip: "76086", region: "Region 6 - Fort Worth", district: "District 62", tz: "America/Chicago" },
+  { n: "197", name: "Rector (Expansion 2024 - Was 42,296)", chain: "Spec's", addr: "819 East Rector Drive", city: "San Antonio", zip: "78216", region: "Region 4 - Central", district: "District 41", tz: "America/Chicago" },
+  { n: "198", name: "Feldmans Liquor Warehouse", chain: "Feldmans", addr: "900 N Jackson Road", city: "Pharr", zip: "78577", region: "", district: "", tz: "America/Chicago" },
+  { n: "199", name: "Pasadena", chain: "Spec's", addr: "4122 Fairmont Parkway", city: "Pasadena", zip: "77504", region: "Region 2 - Southeast", district: "District 27", tz: "America/Chicago" },
+  { n: "200", name: "Humble", chain: "Spec's", addr: "19322 US-59", city: "Humble", zip: "77338", region: "Region 1 - Southeast", district: "District 02", tz: "America/Chicago" },
+  { n: "201", name: "La Porte", chain: "Spec's", addr: "10505 W Fairmont Pkwy", city: "La Porte", zip: "77571", region: "Region 2 - Southeast", district: "District 27", tz: "America/Chicago" },
+  { n: "202", name: "Grand Prairie", chain: "Spec's", addr: "3705 Ragland Rd", city: "Grand Prairie", zip: "75052", region: "Region 3 - North", district: "District 31", tz: "America/Chicago" },
+  { n: "203", name: "Fate", chain: "Spec's", addr: "650 S. William E. Crawford Ave", city: "Fate", zip: "75189", region: "Region 3 - North", district: "District 33", tz: "America/Chicago" },
+  { n: "204", name: "Hurst", chain: "Spec's", addr: "1415 W. Pipeline Rd.", city: "Hurst", zip: "76053", region: "Region 6 - Fort Worth", district: "District 60", tz: "America/Chicago" },
+  { n: "205", name: "Gateway Blvd", chain: "Spec's", addr: "9515 Gateway Blvd., Suite A", city: "El Paso", zip: "79925", region: "Region 6 - Fort Worth", district: "District 66", tz: "America/Denver" },
+  { n: "206", name: "Utep", chain: "Spec's", addr: "2501 North Mesa Street", city: "El Paso", zip: "79902", region: "Region 6 - Fort Worth", district: "District 66", tz: "America/Denver" },
+  { n: "207", name: "Boerne Main", chain: "Spec's", addr: "1313 S. Main St., Suite 200", city: "Boerne", zip: "78006", region: "Region 4 - Central", district: "District 41", tz: "America/Chicago" },
+  { n: "208", name: "Eastlake", chain: "Spec's", addr: "13371 Eastlake Blvd, Bldg 9", city: "El Paso", zip: "79928", region: "Region 6 - Fort Worth", district: "District 66", tz: "America/Denver" },
+  { n: "209", name: "Keller", chain: "Spec's", addr: "101 Keller Smithfield Road S.", city: "Keller", zip: "76248", region: "Region 6 - Fort Worth", district: "District 60", tz: "America/Chicago" },
+  { n: "210", name: "Nacogdoches", chain: "Spec's", addr: "4608 NORTH ST.", city: "Nacogdoches", zip: "75965", region: "Region 3 - North", district: "District 35", tz: "America/Chicago" },
+  { n: "211", name: "Bedford", chain: "Spec's", addr: "1520 AIRPORT FREEWAY", city: "Bedford", zip: "76022", region: "Region 6 - Fort Worth", district: "District 60", tz: "America/Chicago" },
+  { n: "212", name: "Plano North", chain: "Spec's", addr: "5420 State Highway 121", city: "Plano", zip: "75024", region: "Region 3 - North", district: "District 38", tz: "America/Chicago" },
+  { n: "213", name: "Irving", chain: "Spec's", addr: "1900 Market Place Blvd., Suite 100", city: "Irving", zip: "75063", region: "Region 3 - North", district: "District 31", tz: "America/Chicago" },
+  { n: "214", name: "Greenville", chain: "Spec's", addr: "6834 WESLEY ST., SUITE B", city: "Greenville", zip: "75402", region: "Region 3 - North", district: "District 33", tz: "America/Chicago" },
+  { n: "215", name: "Laredo International", chain: "Spec's", addr: "10810 International Blvd.", city: "Laredo", zip: "78045", region: "Region 5 - South", district: "District 54", tz: "America/Chicago" },
+  { n: "216", name: "4Th St. Lubbock", chain: "Spec's", addr: "5510 4th St., Suite 100", city: "Lubbock", zip: "79416", region: "Region 6 - Fort Worth", district: "District 64", tz: "America/Chicago" },
+  { n: "217", name: "Brownsville", chain: "Spec's", addr: "2124 Boca Chica Blvd.", city: "Brownsville", zip: "78521", region: "Region 5 - South", district: "District 52", tz: "America/Chicago" },
+  { n: "218", name: "Carrier Parkway", chain: "Spec's", addr: "4136 S Carrier Parkway, Suite 350", city: "Grand Prairie", zip: "75052", region: "Region 3 - North", district: "District 31", tz: "America/Chicago" },
+  { n: "219", name: "Shadow Creek Ranch", chain: "Spec's", addr: "11023 Shadow Creek Parkway", city: "Pearland", zip: "77584", region: "Region 2 - Southeast", district: "District 28", tz: "America/Chicago" },
+  { n: "220", name: "Stephenville", chain: "Spec's", addr: "2900 W. Washington Street, Suite 125", city: "Stephenville", zip: "76401", region: "Region 6 - Fort Worth", district: "District 62", tz: "America/Chicago" },
+  { n: "221", name: "Pflugerville", chain: "Spec's", addr: "19000 Limestone Commercial Dr., Ste 600", city: "Pflugerville", zip: "78660", region: "Region 4 - Central", district: "District 42", tz: "America/Chicago" },
+  { n: "222", name: "W 34Th Street", chain: "Spec's", addr: "11089 NW Freeway", city: "Houston", zip: "77092", region: "Region 1 - Southeast", district: "District 01", tz: "America/Chicago" },
+  { n: "223", name: "Burleson", chain: "Spec's", addr: "12425 South Freeway", city: "Fort Worth", zip: "76711", region: "Region 6 - Fort Worth", district: "District 62", tz: "America/Chicago" },
+  { n: "224", name: "W 35Th St", chain: "Spec's", addr: "1500 West 35th Street", city: "Austin", zip: "78703", region: "Region 4 - Central", district: "District 42", tz: "America/Chicago" },
+  { n: "225", name: "Lake Lavon", chain: "Spec's", addr: "900 S. SH 78", city: "Lavon", zip: "75166", region: "Region 3 - North", district: "District 33", tz: "America/Chicago" },
+  { n: "226", name: "Lewisville Lake On Justin Road", chain: "Spec's", addr: "1151 FM 407", city: "Lewisville", zip: "75077", region: "Region 3 - North", district: "District 37", tz: "America/Chicago" },
+  { n: "228", name: "Sachse Pgb Hwy", chain: "Spec's", addr: "4205 President George Bush Highway", city: "Sachse", zip: "75048", region: "Region 3 - North", district: "District 33", tz: "America/Chicago" },
+  { n: "229", name: "Kyle", chain: "Spec's", addr: "3933 Kyle Crossing", city: "Kyle", zip: "78640", region: "Region 4 - Central", district: "District 41", tz: "America/Chicago" },
+  { n: "235", name: "Leander", chain: "Spec's", addr: "1481 Hero Way", city: "Leander", zip: "78641", region: "Region 4 - Central", district: "District 47", tz: "America/Chicago" },
+  { n: "241", name: "McKinney Warehouse", chain: "Spec's", addr: "1921 FM 546, Suite 100", city: "McKinney", zip: "75069", region: "", district: "", tz: "America/Chicago" },
+  { n: "247", name: "McKinney Custer", chain: "Spec's", addr: "4121 S Custer Road", city: "McKinney", zip: "75070", region: "Region 3 - North", district: "District 38", tz: "America/Chicago" },
+  { n: "262", name: "Blue Mound Warehouse", chain: "Spec's", addr: "5301 Blue Mound Road", city: "Fort Worth", zip: "76106", region: "", district: "", tz: "America/Chicago" },
+  { n: "281", name: "Seguin", chain: "Spec's", addr: "1500 E. Court Street, Suite 200", city: "Seguin", zip: "78155", region: "Region 4 - Central", district: "District 40", tz: "America/Chicago" },
+  { n: "296", name: "Austin Warehouse", chain: "Spec's", addr: "7900 Industry Way, Building 6", city: "Austin", zip: "78744", region: "", district: "", tz: "America/Chicago" },
+  { n: "347", name: "Garrett Spur 469", chain: "Spec's", addr: "5021 SPUR 469", city: "Garrett", zip: "75119", region: "Region 3 - North", district: "District 33", tz: "America/Chicago" },
+];
+
 const APPROVED_SITES = [
-  { id: "matagorda-regional-medical-center-104-7th-st-bay-city", name: "Matagorda Regional Medical Center", address: "104 7th St, Bay City, TX 77414", phone: "979-245-6383", hours: "Mon-Fri 8am-7pm, Sat 8am-6pm", area: "Bay City" },
-  { id: "afc-6040-garth-rd-ste-10-baytown", name: "AFC", address: "6040 Garth Rd Ste 10, Baytown, TX 77521", phone: "281-720-7806", hours: "Sun-Sat 8am-8pm", area: "Baytown" },
-  { id: "nextlevel-7710-garth-rd-ste-a-baytown", name: "NextLevel", address: "7710 Garth Rd Ste A, Baytown, TX 77627", phone: "713-439-7995", hours: "Sun-Sat 9am-9pm", area: "Baytown" },
-  { id: "carenow-3150-gulf-fwy-s-dickinson", name: "CareNow", address: "3150 Gulf Fwy S, Dickinson, TX 77539", phone: "281-534-0001", hours: "Sun 8am-5pm, Mon-Fri 8am-9pm, Sat 8am-8pm", area: "Dickinson" },
-  { id: "concentra-1002-abc-ave-ste-600-freeport", name: "Concentra", address: "1002 Abc Ave Ste 600, Freeport, TX 77541", phone: "979-233-6571", hours: "Mon-Fri 8am-5pm", area: "Freeport" },
-  { id: "carenow-1729-s-friendswood-dr-friendswood", name: "CareNow", address: "1729 S Friendswood Dr, Friendswood, TX 77546", phone: "281-402-1930", hours: "Sun 8am-5pm, Mon-Fri 8am-9pm, Sat 8am-8pm", area: "Friendswood" },
-  { id: "affinity-2808-61st-st-ste-200-galveston", name: "Affinity", address: "2808 61st St Ste 200, Galveston, TX 77551", phone: "281-886-8964", hours: "Sun 9am-5pm, Mon-Fri 8am-8pm, Sat 9am-5pm", area: "Galveston" },
-  { id: "west-isle-2027-61st-st-galveston", name: "West Isle", address: "2027 61st St, Galveston, TX 77551", phone: "409-744-9800", hours: "Sun-Sat 8am-10pm", area: "Galveston" },
-  { id: "afc-107-yale-st-ste-200-houston", name: "AFC", address: "107 Yale St Ste 200, Houston, TX 77007", phone: "713-861-6060", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-5pm", area: "Houston" },
-  { id: "afc-2402-bay-area-blvd-ste-m-houston", name: "AFC", address: "2402 Bay Area Blvd Ste M, Houston, TX", phone: "832-310-1368 / 832-650-0604", hours: "Sun-Sat 8am-8pm", area: "Houston" },
-  { id: "afc-5568-weslayan-st-houston", name: "AFC", address: "5568 Weslayan St, Houston, TX 77005", phone: "713-666-7050", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Houston" },
-  { id: "carenow-102-w-11th-st-houston", name: "CareNow", address: "102 W 11th St, Houston, TX 77008", phone: "832-539-4707", hours: "Sun-Sat 8am-8pm", area: "Houston" },
-  { id: "carenow-14045-memorial-dr-houston", name: "CareNow", address: "14045 Memorial Dr, Houston, TX", phone: "832-548-4410", hours: "Sun-Sat 8am-8pm", area: "Houston" },
-  { id: "carenow-1917-w-gray-st-houston", name: "CareNow", address: "1917 W Gray St, Houston, TX 77019", phone: "832-260-0650", hours: "Sun-Sat 8am-8pm", area: "Houston" },
-  { id: "carenow-2707-milam-st-houston", name: "CareNow", address: "2707 Milam St, Houston, TX 77006", phone: "832-632-7135", hours: "Sun-Sat 8am-8pm", area: "Houston" },
-  { id: "concentra-12345-katy-fwy-houston", name: "Concentra", address: "12345 Katy Fwy, Houston, TX 77079", phone: "281-679-5600", hours: "Mon-Fri 8am-8pm, Sat 9am-4pm", area: "Houston" },
-  { id: "concentra-6545-southwest-fwy-houston", name: "Concentra", address: "6545 Southwest Fwy, Houston, TX 77074", phone: "713-995-6998 / 713-995-6580", hours: "Mon-Fri 8am-5pm", area: "Houston" },
-  { id: "concentra-8505-gulf-fwy-ste-f-houston", name: "Concentra", address: "8505 Gulf Fwy Ste F, Houston, TX 77017", phone: "713-944-4582", hours: "Mon-Fri 8am-5pm", area: "Houston" },
-  { id: "concentra-8508-gulf-fwy-ste-f-houston", name: "Concentra", address: "8508 Gulf Fwy Ste F, Houston, TX 77017", phone: "713-944-4442", hours: "Mon-Fri 8am-5pm", area: "Houston" },
-  { id: "concentra-9200-hempstead-hwy-ste-137-houston", name: "Concentra", address: "9200 Hempstead Hwy Ste 137, Houston, TX 77008", phone: "713-880-9800", hours: "Mon-Fri 8am-5pm", area: "Houston" },
-  { id: "gohealth-11700-westheimer-rd-ste-j-houston", name: "GoHealth", address: "11700 Westheimer Rd Ste J, Houston, TX 77077", phone: "346-575-0067", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Houston" },
-  { id: "gohealth-12740-memorial-dr-ste-100-houston", name: "GoHealth", address: "12740 Memorial Dr Ste 100, Houston, TX 77024", phone: "346-326-9990", hours: "Sun-Sat 8am-Midnight", area: "Houston" },
-  { id: "nextcare-1202-e-nasa-parkway-houston", name: "NextCare", address: "1202 E Nasa Parkway, Houston, TX 77052", phone: "281-335-0606", hours: "Sun-Sat 9am-9pm", area: "Houston" },
-  { id: "nextlevel-4936-beechnut-houston", name: "NextLevel", address: "4936 Beechnut, Houston, TX 77096", phone: "281-439-7995 / 281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Houston" },
-  { id: "nextlevel-5749-san-felipe-houston", name: "NextLevel", address: "5749 San Felipe, Houston, TX 77057", phone: "281-783-8162", hours: "Mon-Fri 9am-9pm", area: "Houston" },
-  { id: "carenow-6501-s-fry-rd-ste-1000-katy", name: "CareNow", address: "6501 S Fry Rd Ste 1000, Katy, TX 77494", phone: "832-260-0670", hours: "Sun-Sat 8am-8pm", area: "Katy" },
-  { id: "concentra-25805-katy-fwy-ste-600-katy", name: "Concentra", address: "25805 Katy Fwy Ste 600, Katy, TX 77494", phone: "346-266-0756", hours: "Mon-Fri 8am-5pm", area: "Katy" },
-  { id: "nextlevel-10625-spring-green-blvd-ste-200-katy", name: "NextLevel", address: "10625 Spring Green Blvd Ste 200, Katy, TX 77494", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Katy" },
-  { id: "nextlevel-1420-katy-fort-bend-rd-ste-105-katy", name: "NextLevel", address: "1420 Katy Fort Bend Rd Ste 105, Katy, TX 77493", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Katy" },
-  { id: "nextlevel-21700-kingsland-blvd-ste-104-katy", name: "NextLevel", address: "21700 Kingsland Blvd Ste 104, Katy, TX 77450", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Katy" },
-  { id: "nextlevel-9722-gaston-rd-ste-190-katy", name: "NextLevel", address: "9722 Gaston Rd Ste 190, Katy, TX 77494", phone: "281-783-8162 / 713-439-7995", hours: "Sun-Sat 9am-9pm", area: "Katy" },
-  { id: "afc-8850-spencer-hwy-ste-105-la-porte", name: "AFC", address: "8850 Spencer Hwy Ste 105, La Porte, TX 77571", phone: "281-946-9980", hours: "Sun-Sat 8am-8pm", area: "La Porte" },
-  { id: "concentra-1309-west-fairmont-pkwy-ste-x-la-porte", name: "Concentra", address: "1309 West Fairmont Pkwy Ste X, La Porte, TX 77571", phone: "281-470-1542", hours: "Mon-Fri 8am-5pm", area: "La Porte" },
-  { id: "nextlevel-101-winding-way-ste-a-lake-jackson", name: "NextLevel", address: "101 Winding Way Ste A, Lake Jackson, TX 77566", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Lake Jackson" },
-  { id: "nextlevel-2560-e-league-city-pkwy-ste-b-league-city", name: "NextLevel", address: "2560 E League City Pkwy Ste B, League City, TX 77573", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "League City" },
-  { id: "gohealth-8035-hwy-6-ste-170-missouri-city", name: "GoHealth", address: "8035 Hwy 6 Ste 170, Missouri City, TX 77459", phone: "281-947-0017", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Missouri City" },
-  { id: "nextlevel-8720-hwy-6-ste-400-missouri-city", name: "NextLevel", address: "8720 Hwy 6 Ste 400, Missouri City, TX 77459", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Missouri City" },
-  { id: "carenow-5233-fairmont-pkwy-ste-1-pasadena", name: "CareNow", address: "5233 Fairmont Pkwy Ste 1, Pasadena, TX 77505", phone: "713-568-0240", hours: "Sun 8am-5pm, Mon-Fri 8am-9pm, Sat 8am-8pm", area: "Pasadena" },
-  { id: "nextcare-6825-spencer-hwy-pasadena", name: "NextCare", address: "6825 Spencer Hwy, Pasadena, TX 77505", phone: "281-741-0070", hours: "Sun-Sat 9am-9pm", area: "Pasadena" },
-  { id: "carenow-11826-broadway-st-pearland", name: "CareNow", address: "11826 Broadway St, Pearland, TX 77584", phone: "346-422-2400", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Pearland" },
-  { id: "carenow-2907-east-broadway-st-pearland", name: "CareNow", address: "2907 East Broadway St, Pearland, TX 77581", phone: "281-925-1970", hours: "Sun 8am-5pm, Mon-Fri 8am-9pm, Sat 8am-8pm", area: "Pearland" },
-  { id: "nextlevel-8325-broadway-st-ste-220-pearland", name: "NextLevel", address: "8325 Broadway St Ste 220, Pearland, TX 77581", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Pearland" },
-  { id: "afc-18310-w-airport-blvd-ste-100-richmond", name: "AFC", address: "18310 W Airport Blvd Ste 100, Richmond, TX", phone: "832-730-4481 / 832-756-7772", hours: "Sun-Sat 8am-8pm", area: "Richmond" },
-  { id: "afc-3415-fm-762-ste-180-richmond", name: "AFC", address: "3415 FM 762 Ste 180, Richmond, TX 77469", phone: "281-699-5680", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-5pm", area: "Richmond" },
-  { id: "nextlevel-4002-fm-762-rd-ste-100-rosenberg", name: "NextLevel", address: "4002 FM 762 Rd Ste 100, Rosenberg, TX 77469", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Rosenberg" },
-  { id: "concentra-10521-corporate-dr-stafford", name: "Concentra", address: "10521 Corporate Dr, Stafford, TX 77477", phone: "281-277-7997", hours: "Mon-Fri 8am-5pm", area: "Stafford" },
-  { id: "afc-3551-hwy-6-sugar-land", name: "AFC", address: "3551 Hwy 6, Sugar Land, TX 77478", phone: "281-491-5742 / 832-324-9996", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Sugar Land" },
-  { id: "carenow-1403-hwy-6-sugar-land", name: "CareNow", address: "1403 Hwy 6, Sugar Land, TX 77478", phone: "832-260-0640", hours: "Sun-Sat 8am-8pm", area: "Sugar Land" },
-  { id: "nextlevel-16312-southwest-fwy-sugar-land", name: "NextLevel", address: "16312 Southwest Fwy, Sugar Land, TX 77479", phone: "281-783-8162", hours: "Sun-Sat 9am-9pm", area: "Sugar Land" },
+  { id: "concentra-15810-midway-rd-addison", name: "Concentra", address: "15810 Midway Rd, Addison, TX 75001", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Addison", src: "listing" },
+  { id: "carenow-1218-w-mcdermott-dr-allen", name: "CareNow", address: "1218 W McDermott Dr, Allen, TX 75013", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Allen", src: "listing" },
+  { id: "concentra-1619-s-kentucky-st-amarillo", name: "Concentra", address: "1619 S Kentucky St, Amarillo, TX 79102", phone: "", hours: "", area: "Amarillo", src: "listing" },
+  { id: "concentra-7214-crawford-rd-argyle", name: "Concentra", address: "7214 Crawford Rd, Argyle, TX 76226", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-5pm, Sun Closed", area: "Argyle", src: "listing" },
+  { id: "carenow-5405-s-cooper-st-arlington", name: "CareNow", address: "5405 S Cooper St, Arlington, TX 76017", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Arlington", src: "listing" },
+  { id: "concentra-2160-e-lamar-blvd-arlington", name: "Concentra", address: "2160 E Lamar Blvd, Arlington, TX 76006", phone: "", hours: "Mon Closed, Tue-Fri 8am-5pm, Sat 8am-4pm, Sun Closed", area: "Arlington", src: "listing" },
+  { id: "concentra-511-e-interstate-20-arlington", name: "Concentra", address: "511 E Interstate 20, Arlington, TX 76014", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Arlington", src: "listing" },
+  { id: "carenow-10001-research-blvd-austin", name: "CareNow", address: "10001 Research Blvd, Austin, TX 78759", phone: "", hours: "Mon-Thu 8am-8pm, Fri 8am-7pm, Sat 8am-5pm, Sun 8am-8pm", area: "Austin", src: "listing" },
+  { id: "carenow-10625-w-parmer-ln-austin", name: "CareNow", address: "10625 W Parmer Ln, Austin, TX 78717", phone: "", hours: "Mon-Thu 8am-8pm, Fri 8am-7pm, Sat 8am-5pm, Sun 8am-8pm", area: "Austin", src: "listing" },
+  { id: "carenow-11521-ranch-rd-620-n-austin", name: "CareNow", address: "11521 Ranch Rd 620 N, Austin, TX 78726", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing" },
+  { id: "carenow-12415-n-interstate-35-frontage-rd-austin", name: "CareNow", address: "12415 N Interstate 35 Frontage Rd, Austin, TX 78753", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing" },
+  { id: "carenow-1920-e-riverside-dr-austin", name: "CareNow", address: "1920 E Riverside Dr, Austin, TX 78741", phone: "", hours: "", area: "Austin", src: "listing" },
+  { id: "carenow-208-w-ben-white-blvd-austin", name: "CareNow", address: "208 W Ben White Blvd, Austin, TX 78704", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing" },
+  { id: "carenow-2303-ranch-rd-620-s-austin", name: "CareNow", address: "2303 Ranch Rd 620 S, Austin, TX 78734", phone: "", hours: "", area: "Austin", src: "listing" },
+  { id: "carenow-3906-n-lamar-blvd-austin", name: "CareNow", address: "3906 N Lamar Blvd, Austin, TX 78756", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing" },
+  { id: "carenow-5033-w-us-hwy-290-service-rd-austin", name: "CareNow", address: "5033 W US Hwy 290 Service Rd, Austin, TX 78746", phone: "", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "Austin", src: "listing" },
+  { id: "carenow-517-s-lamar-blvd-austin", name: "CareNow", address: "517 S Lamar Blvd, Austin, TX 78704", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing" },
+  { id: "carenow-7212-burnet-rd-austin", name: "CareNow", address: "7212 Burnet Rd, Austin, TX 78757", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing" },
+  { id: "concentra-10001-s-i-35-frontage-rd-austin", name: "Concentra", address: "10001 S I-35 Frontage Rd, Austin, TX 78747", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Austin", src: "listing" },
+  { id: "concentra-13831-us-183-hwy-austin", name: "Concentra", address: "13831 US-183 Hwy, Austin, TX 78750", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Austin", src: "listing" },
+  { id: "concentra-2000-w-anderson-ln-austin", name: "Concentra", address: "2000 W Anderson Ln, Austin, TX 78757", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Austin", src: "listing" },
+  { id: "concentra-2171-woodward-st-austin", name: "Concentra", address: "2171 Woodward St, Austin, TX 78744", phone: "", hours: "", area: "Austin", src: "listing" },
+  { id: "concentra-3801-s-lamar-blvd-austin", name: "Concentra", address: "3801 S Lamar Blvd, Austin, TX 78704", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Austin", src: "listing" },
+  { id: "concentra-9333-research-blvd-austin", name: "Concentra", address: "9333 Research Blvd, Austin, TX 78759", phone: "", hours: "Mon-Fri 8am-8pm, Sat 9am-5pm, Sun 10am-5pm", area: "Austin", src: "listing" },
+  { id: "matagorda-regional-medical-center-104-7th-st-bay-city", name: "Matagorda Regional Medical Center", address: "104 7th St, Bay City, TX 77414", phone: "979-245-6383", hours: "Mon-Fri 8am-7pm, Sat 8am-6pm, Sun Closed", area: "Bay City", src: "spec" },
+  { id: "afc-6040-garth-rd-ste-10-baytown", name: "AFC", address: "6040 Garth Rd Ste 10, Baytown, TX 77521", phone: "281-720-7806", hours: "Mon-Sun 8am-8pm", area: "Baytown", src: "spec" },
+  { id: "nextlevel-7710-garth-rd-ste-a-baytown", name: "NextLevel", address: "7710 Garth Rd Ste A, Baytown, TX 77627", phone: "713-439-7995", hours: "Mon-Sun 9am-9pm", area: "Baytown", src: "spec" },
+  { id: "carenow-2114-boca-chica-blvd-brownsville", name: "CareNow", address: "2114 Boca Chica Blvd, Brownsville, TX 78521", phone: "", hours: "", area: "Brownsville", src: "listing" },
+  { id: "carenow-1567-main-st-buda", name: "CareNow", address: "1567 Main St, Buda, TX 78610", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Buda", src: "listing" },
+  { id: "carenow-1501-sw-wilshire-blvd-burleson", name: "CareNow", address: "1501 SW Wilshire Blvd, Burleson, TX 76028", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Burleson", src: "listing" },
+  { id: "carenow-1017-w-hebron-pkwy-carrollton", name: "CareNow", address: "1017 W Hebron Pkwy, Carrollton, TX 75010", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Carrollton", src: "listing" },
+  { id: "concentra-1345-valwood-pkwy-carrollton", name: "Concentra", address: "1345 Valwood Pkwy, Carrollton, TX 75006", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Carrollton", src: "listing" },
+  { id: "carenow-345-n-hwy-67-cedar-hill", name: "CareNow", address: "345 N Hwy 67, Cedar Hill, TX 75104", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Cedar Hill", src: "listing" },
+  { id: "carenow-5001-183a-cedar-park", name: "CareNow", address: "5001 183A, Cedar Park, TX 78613", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Cedar Park", src: "listing" },
+  { id: "carenow-1150-w-dallas-st-conroe", name: "CareNow", address: "1150 W Dallas St, Conroe, TX 77301", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Conroe", src: "listing" },
+  { id: "carenow-645-tx-121-coppell", name: "CareNow", address: "645 TX-121, Coppell, TX 75019", phone: "", hours: "Mon 8am-5pm, Tue-Sat 8am-10pm, Sun 8am-8pm", area: "Coppell", src: "listing" },
+  { id: "concentra-4025-s-padre-island-dr-corpus-christi", name: "Concentra", address: "4025 S Padre Island Dr, Corpus Christi, TX 78411", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Corpus Christi", src: "listing" },
+  { id: "carenow-9110-barker-cypress-rd-cypress", name: "CareNow", address: "9110 Barker Cypress Rd, Cypress, TX 77433", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Cypress", src: "listing" },
+  { id: "carenow-12801-midway-rd-dallas", name: "CareNow", address: "12801 Midway Rd, Dallas, TX 75244", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
+  { id: "carenow-14856-preston-rd-dallas", name: "CareNow", address: "14856 Preston Rd, Dallas, TX 75254", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
+  { id: "carenow-2221-abrams-rd-dallas", name: "CareNow", address: "2221 Abrams Rd, Dallas, TX 75214", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
+  { id: "carenow-2404-mckinney-ave-dallas", name: "CareNow", address: "2404 McKinney Ave, Dallas, TX 75201", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
+  { id: "carenow-39769-i-20-dallas", name: "CareNow", address: "39769 I-20, Dallas, TX 75237", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
+  { id: "carenow-4501-lemmon-ave-dallas", name: "CareNow", address: "4501 Lemmon Ave, Dallas, TX 75219", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
+  { id: "carenow-4617-n-central-expy-dallas", name: "CareNow", address: "4617 N Central Expy, Dallas, TX 75205", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
+  { id: "carenow-4844-greenville-ave-dallas", name: "CareNow", address: "4844 Greenville Ave, Dallas, TX 75206", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
+  { id: "carenow-9323-lyndon-b-johnson-fwy-dallas", name: "CareNow", address: "9323 Lyndon B Johnson Fwy, Dallas, TX 75243", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
+  { id: "concentra-1450-empire-central-dr-dallas", name: "Concentra", address: "1450 Empire Central Dr, Dallas, TX 75247", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Dallas", src: "listing" },
+  { id: "concentra-2920-n-stemmons-fwy-dallas", name: "Concentra", address: "2920 N Stemmons Fwy, Dallas, TX 75247", phone: "", hours: "Mon-Fri 8am-5pm, Sat 9am-5pm, Sun Closed", area: "Dallas", src: "listing" },
+  { id: "concentra-5520-s-westmoreland-rd-dallas", name: "Concentra", address: "5520 S Westmoreland Rd, Dallas, TX 75237", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Dallas", src: "listing" },
+  { id: "concentra-5601-greenville-ave-dallas", name: "Concentra", address: "5601 Greenville Ave, Dallas, TX 75206", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Dallas", src: "listing" },
+  { id: "carenow-9055-spencer-hwy-deer-park", name: "CareNow", address: "9055 Spencer Hwy, Deer Park, TX 77536", phone: "", hours: "", area: "Deer Park", src: "listing" },
+  { id: "concentra-125-e-8th-st-deer-park", name: "Concentra", address: "125 E 8th St, Deer Park, TX 77536", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Deer Park", src: "listing" },
+  { id: "carenow-2520-w-university-dr-denton", name: "CareNow", address: "2520 W University Dr, Denton, TX 76201", phone: "", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "Denton", src: "listing" },
+  { id: "carenow-3751-i-35e-denton", name: "CareNow", address: "3751 I-35E, Denton, TX 76210", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Denton", src: "listing" },
+  { id: "concentra-2215-s-loop-288-denton", name: "Concentra", address: "2215 S Loop 288, Denton, TX 76205", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-5pm, Sun 9am-6pm", area: "Denton", src: "listing" },
+  { id: "carenow-3150-gulf-fwy-s-dickinson", name: "CareNow", address: "3150 Gulf Fwy S, Dickinson, TX 77539", phone: "281-534-0001", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Dickinson", src: "spec" },
+  { id: "carenow-293-e-trenton-rd-edinburg", name: "CareNow", address: "293 E Trenton Rd, Edinburg, TX 78539", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Edinburg", src: "listing" },
+  { id: "carenow-7845-n-mesa-st-el-paso", name: "CareNow", address: "7845 N Mesa St, El Paso, TX 79932", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "El Paso", src: "listing" },
+  { id: "carenow-9640-montwood-dr-el-paso", name: "CareNow", address: "9640 Montwood Dr, El Paso, TX 79925", phone: "", hours: "", area: "El Paso", src: "listing" },
+  { id: "concentra-1610-n-zaragoza-rd-el-paso", name: "Concentra", address: "1610 N Zaragoza Rd, El Paso, TX 79936", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "El Paso", src: "listing" },
+  { id: "concentra-6320-gtwy-blvd-e-el-paso", name: "Concentra", address: "6320 Gtwy Blvd E, El Paso, TX 79905", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "El Paso", src: "listing" },
+  { id: "carenow-610-e-us-hwy-80-forney", name: "CareNow", address: "610 E US Hwy 80, Forney, TX 75126", phone: "", hours: "", area: "Forney", src: "listing" },
+  { id: "carenow-2700-horne-st-fort-worth", name: "CareNow", address: "2700 Horne St, Fort Worth, TX 76107", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
+  { id: "carenow-2900-renaissance-sq-fort-worth", name: "CareNow", address: "2900 Renaissance Sq, Fort Worth, TX 76105", phone: "", hours: "", area: "Fort Worth", src: "listing" },
+  { id: "carenow-3520-nw-centre-dr-fort-worth", name: "CareNow", address: "3520 NW Centre Dr, Fort Worth, TX 76135", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
+  { id: "carenow-4524-w-bailey-boswell-rd-fort-worth", name: "CareNow", address: "4524 W Bailey Boswell Rd, Fort Worth, TX 76179", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
+  { id: "carenow-454-jim-wright-fwy-fort-worth", name: "CareNow", address: "454 Jim Wright Fwy, Fort Worth, TX 76108", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
+  { id: "carenow-5653-mcpherson-blvd-fort-worth", name: "CareNow", address: "5653 McPherson Blvd, Fort Worth, TX 76123", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
+  { id: "carenow-7232-north-fwy-fort-worth", name: "CareNow", address: "7232 North Fwy, Fort Worth, TX 76137", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
+  { id: "carenow-7400-mc-cart-ave-fort-worth", name: "CareNow", address: "7400 Mc Cart Ave, Fort Worth, TX 76133", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
+  { id: "carenow-8450-east-fwy-fort-worth", name: "CareNow", address: "8450 East Fwy, Fort Worth, TX 76120", phone: "", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
+  { id: "carenow-8901-n-fwy-fort-worth", name: "CareNow", address: "8901 N Fwy, Fort Worth, TX 76177", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
+  { id: "concentra-2500-west-fwy-fort-worth", name: "Concentra", address: "2500 West Fwy, Fort Worth, TX 76102", phone: "", hours: "Mon-Fri 8am-5pm, Sat 8am-4pm, Sun Closed", area: "Fort Worth", src: "listing" },
+  { id: "concentra-4060-sandshell-dr-fort-worth", name: "Concentra", address: "4060 Sandshell Dr, Fort Worth, TX 76137", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Fort Worth", src: "listing" },
+  { id: "concentra-1002-abc-ave-ste-600-freeport", name: "Concentra", address: "1002 Abc Ave Ste 600, Freeport, TX 77541", phone: "979-233-6571", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Freeport", src: "spec" },
+  { id: "carenow-1729-s-friendswood-dr-friendswood", name: "CareNow", address: "1729 S Friendswood Dr, Friendswood, TX 77546", phone: "281-402-1930", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Friendswood", src: "spec" },
+  { id: "carenow-301-w-main-st-frisco", name: "CareNow", address: "301 W Main St, Frisco, TX 75034", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Frisco", src: "listing" },
+  { id: "carenow-5644-preston-rd-frisco", name: "CareNow", address: "5644 Preston Rd, Frisco, TX 75034", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Frisco", src: "listing" },
+  { id: "concentra-8756-teel-pkwy-frisco", name: "Concentra", address: "8756 Teel Pkwy, Frisco, TX 75034", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Frisco", src: "listing" },
+  { id: "affinity-2808-61st-st-ste-200-galveston", name: "Affinity", address: "2808 61st St Ste 200, Galveston, TX 77551", phone: "281-886-8964", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Galveston", src: "spec" },
+  { id: "west-isle-2027-61st-st-galveston", name: "West Isle", address: "2027 61st St, Galveston, TX 77551", phone: "409-744-9800", hours: "Mon-Sun 8am-10pm", area: "Galveston", src: "spec" },
+  { id: "carenow-5106-n-president-george-bush-hwy-garland", name: "CareNow", address: "5106 N President George Bush Hwy, Garland, TX 75040", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Garland", src: "listing" },
+  { id: "carenow-565-w-interstate-30-garland", name: "CareNow", address: "565 W Interstate 30, Garland, TX 75043", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Garland", src: "listing" },
+  { id: "concentra-1621-s-jupiter-rd-garland", name: "Concentra", address: "1621 S Jupiter Rd, Garland, TX 75042", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Garland", src: "listing" },
+  { id: "carenow-1205-s-i-35-frontage-rd-georgetown", name: "CareNow", address: "1205 S I-35 Frontage Rd, Georgetown, TX 78626", phone: "", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-7pm", area: "Georgetown", src: "listing" },
+  { id: "carenow-1205-south-i-35-georgetown", name: "CareNow", address: "1205 South I-35, Georgetown, TX 78628", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Georgetown", src: "listing" },
+  { id: "carenow-2520-i-20-frontage-rd-grand-prairie", name: "CareNow", address: "2520 I-20 Frontage Rd, Grand Prairie, TX 75052", phone: "", hours: "Mon-Fri 8am-10pm, Sat 8am-8pm, Sun 8am-5pm", area: "Grand Prairie", src: "listing" },
+  { id: "carenow-5301-william-d-tate-ave-grapevine", name: "CareNow", address: "5301 William D Tate Ave, Grapevine, TX 76051", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Grapevine", src: "listing" },
+  { id: "concentra-2900-denton-hwy-haltom-city", name: "Concentra", address: "2900 Denton Hwy, Haltom City, TX 76117", phone: "", hours: "Mon Closed, Tue-Sat 8am-5pm, Sun 9am-4pm", area: "Haltom City", src: "listing" },
+  { id: "afc-107-yale-st-ste-200-houston", name: "AFC", address: "107 Yale St Ste 200, Houston, TX 77007", phone: "713-861-6060", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-5pm", area: "Houston", src: "spec" },
+  { id: "afc-2402-bay-area-blvd-ste-m-houston", name: "AFC", address: "2402 Bay Area Blvd Ste M, Houston, TX", phone: "832-310-1368 / 832-650-0604", hours: "Mon-Sun 8am-8pm", area: "Houston", src: "spec" },
+  { id: "afc-5568-weslayan-st-houston", name: "AFC", address: "5568 Weslayan St, Houston, TX 77005", phone: "713-666-7050", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Houston", src: "spec" },
+  { id: "carenow-102-w-11th-st-houston", name: "CareNow", address: "102 W 11th St, Houston, TX 77008", phone: "832-539-4707", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Houston", src: "spec" },
+  { id: "carenow-14045-memorial-dr-houston", name: "CareNow", address: "14045 Memorial Dr, Houston, TX", phone: "832-548-4410", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Houston", src: "spec" },
+  { id: "carenow-1917-w-gray-st-houston", name: "CareNow", address: "1917 W Gray St, Houston, TX 77019", phone: "832-260-0650", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Houston", src: "spec" },
+  { id: "carenow-2707-milam-st-houston", name: "CareNow", address: "2707 Milam St, Houston, TX 77006", phone: "832-632-7135", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Houston", src: "spec" },
+  { id: "carenow-2727-dunvale-rd-houston", name: "CareNow", address: "2727 Dunvale Rd, Houston, TX 77063", phone: "", hours: "Mon-Fri 9am-9pm, Sat 9am-7pm, Sun 10am-6pm", area: "Houston", src: "listing" },
+  { id: "carenow-7107-s-texas-6-houston", name: "CareNow", address: "7107 S Texas 6, Houston, TX 77083", phone: "", hours: "", area: "Houston", src: "listing" },
+  { id: "carenow-8470-hwy-6-n-houston", name: "CareNow", address: "8470 Hwy 6 N, Houston, TX 77095", phone: "", hours: "", area: "Houston", src: "listing" },
+  { id: "concentra-1000-n-post-oak-rd-houston", name: "Concentra", address: "1000 N Post Oak Rd, Houston, TX 77055", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
+  { id: "concentra-10909-east-fwy-houston", name: "Concentra", address: "10909 East Fwy, Houston, TX 77029", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
+  { id: "concentra-12345-katy-fwy-houston", name: "Concentra", address: "12345 Katy Fwy, Houston, TX 77079", phone: "281-679-5600", hours: "Mon-Fri 8am-5pm, Sat 9am-4pm, Sun Closed", area: "Houston", src: "spec" },
+  { id: "concentra-124-b-farm-to-market-1960-rd-e-houston", name: "Concentra", address: "124-B Farm to Market 1960 Rd E, Houston, TX 77073", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
+  { id: "concentra-1414-s-loop-w-houston", name: "Concentra", address: "1414 S Loop W, Houston, TX 77054", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
+  { id: "concentra-17410-northwest-fwy-houston", name: "Concentra", address: "17410 Northwest Fwy, Houston, TX 77040", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
+  { id: "concentra-2004-leeland-st-houston", name: "Concentra", address: "2004 Leeland St, Houston, TX 77003", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
+  { id: "concentra-401-greens-rd-houston", name: "Concentra", address: "401 Greens Rd, Houston, TX 77060", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
+  { id: "concentra-6360-w-sam-houston-pkwy-n-houston", name: "Concentra", address: "6360 W Sam Houston Pkwy N, Houston, TX 77041", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
+  { id: "concentra-6545-southwest-fwy-houston", name: "Concentra", address: "6545 Southwest Fwy, Houston, TX 77074", phone: "713-995-6998 / 713-995-6580", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "spec" },
+  { id: "concentra-8508-gulf-fwy-ste-f-houston", name: "Concentra", address: "8508 Gulf Fwy Ste F, Houston, TX 77017", phone: "713-944-4442", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "spec" },
+  { id: "concentra-8799-n-loop-e-fwy-houston", name: "Concentra", address: "8799 N Loop E Fwy, Houston, TX 77029", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
+  { id: "concentra-9200-hempstead-hwy-ste-137-houston", name: "Concentra", address: "9200 Hempstead Hwy Ste 137, Houston, TX 77008", phone: "713-880-9800", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "spec" },
+  { id: "gohealth-11700-westheimer-rd-ste-j-houston", name: "GoHealth", address: "11700 Westheimer Rd Ste J, Houston, TX 77077", phone: "346-575-0067", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Houston", src: "spec" },
+  { id: "gohealth-12740-memorial-dr-ste-100-houston", name: "GoHealth", address: "12740 Memorial Dr Ste 100, Houston, TX 77024", phone: "346-326-9990", hours: "Mon-Sun 8am-Midnight", area: "Houston", src: "spec" },
+  { id: "nextcare-1202-e-nasa-parkway-houston", name: "NextCare", address: "1202 E Nasa Parkway, Houston, TX 77052", phone: "281-335-0606", hours: "Mon-Sun 9am-9pm", area: "Houston", src: "spec" },
+  { id: "nextlevel-4936-beechnut-houston", name: "NextLevel", address: "4936 Beechnut, Houston, TX 77096", phone: "281-439-7995 / 281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Houston", src: "spec" },
+  { id: "nextlevel-5749-san-felipe-houston", name: "NextLevel", address: "5749 San Felipe, Houston, TX 77057", phone: "281-783-8162", hours: "Mon-Fri 9am-9pm, Sat-Sun Closed", area: "Houston", src: "spec" },
+  { id: "carenow-7072-farm-to-market-1960-rd-e-humble", name: "CareNow", address: "7072 Farm to Market 1960 Rd E, Humble, TX 77346", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Humble", src: "listing" },
+  { id: "carenow-779-grapevine-hwy-hurst", name: "CareNow", address: "779 Grapevine Hwy, Hurst, TX 76054", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Hurst", src: "listing" },
+  { id: "carenow-4810-gattis-school-rd-hutto", name: "CareNow", address: "4810 Gattis School Rd, Hutto, TX 78634", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Hutto", src: "listing" },
+  { id: "carenow-2675-n-belt-line-rd-irving", name: "CareNow", address: "2675 N Belt Line Rd, Irving, TX 75062", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Irving", src: "listing" },
+  { id: "carenow-2851-w-lyndon-b-johnson-fwy-irving", name: "CareNow", address: "2851 W Lyndon B Johnson Fwy, Irving, TX 75063", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Irving", src: "listing" },
+  { id: "carenow-7400-n-macarthur-blvd-irving", name: "CareNow", address: "7400 N MacArthur Blvd, Irving, TX 75063", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Irving", src: "listing" },
+  { id: "concentra-2233-e-grauwyler-rd-irving", name: "Concentra", address: "2233 E Grauwyler Rd, Irving, TX 75061", phone: "", hours: "", area: "Irving", src: "listing" },
+  { id: "concentra-5910-n-macarthur-blvd-irving", name: "Concentra", address: "5910 N MacArthur Blvd, Irving, TX 75039", phone: "", hours: "Mon Closed, Tue-Sat 8am-8pm, Sun 8am-5pm", area: "Irving", src: "listing" },
+  { id: "carenow-6501-s-fry-rd-ste-1000-katy", name: "CareNow", address: "6501 S Fry Rd Ste 1000, Katy, TX 77494", phone: "832-260-0670", hours: "Mon-Sun 8am-8pm", area: "Katy", src: "spec" },
+  { id: "concentra-25805-katy-fwy-ste-600-katy", name: "Concentra", address: "25805 Katy Fwy Ste 600, Katy, TX 77494", phone: "346-266-0756", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Katy", src: "spec" },
+  { id: "nextlevel-10625-spring-green-blvd-ste-200-katy", name: "NextLevel", address: "10625 Spring Green Blvd Ste 200, Katy, TX 77494", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Katy", src: "spec" },
+  { id: "nextlevel-1420-katy-fort-bend-rd-ste-105-katy", name: "NextLevel", address: "1420 Katy Fort Bend Rd Ste 105, Katy, TX 77493", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Katy", src: "spec" },
+  { id: "nextlevel-21700-kingsland-blvd-ste-104-katy", name: "NextLevel", address: "21700 Kingsland Blvd Ste 104, Katy, TX 77450", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Katy", src: "spec" },
+  { id: "nextlevel-9722-gaston-rd-ste-190-katy", name: "NextLevel", address: "9722 Gaston Rd Ste 190, Katy, TX 77494", phone: "281-783-8162 / 713-439-7995", hours: "Mon-Sun 9am-9pm", area: "Katy", src: "spec" },
+  { id: "carenow-104-s-main-st-keller", name: "CareNow", address: "104 S Main St, Keller, TX 76248", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Keller", src: "listing" },
+  { id: "carenow-720-s-main-st-keller", name: "CareNow", address: "720 S Main St, Keller, TX 76248", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Keller", src: "listing" },
+  { id: "carenow-300-northpark-dr-kingwood", name: "CareNow", address: "300 Northpark Dr, Kingwood, TX 77339", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Kingwood", src: "listing" },
+  { id: "afc-8850-spencer-hwy-ste-105-la-porte", name: "AFC", address: "8850 Spencer Hwy Ste 105, La Porte, TX 77571", phone: "281-946-9980", hours: "Mon-Sun 8am-8pm", area: "La Porte", src: "spec" },
+  { id: "concentra-1309-west-fairmont-pkwy-ste-x-la-porte", name: "Concentra", address: "1309 West Fairmont Pkwy Ste X, La Porte, TX 77571", phone: "281-470-1542", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "La Porte", src: "spec" },
+  { id: "nextlevel-101-winding-way-ste-a-lake-jackson", name: "NextLevel", address: "101 Winding Way Ste A, Lake Jackson, TX 77566", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Lake Jackson", src: "spec" },
+  { id: "nextlevel-2560-e-league-city-pkwy-ste-b-league-city", name: "NextLevel", address: "2560 E League City Pkwy Ste B, League City, TX 77573", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "League City", src: "spec" },
+  { id: "carenow-144-s-brook-dr-leander", name: "CareNow", address: "144 S Brook Dr, Leander, TX 78641", phone: "", hours: "", area: "Leander", src: "listing" },
+  { id: "carenow-1559-w-main-st-lewisville", name: "CareNow", address: "1559 W Main St, Lewisville, TX 75067", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Lewisville", src: "listing" },
+  { id: "concentra-2403-s-stemmons-fwy-lewisville", name: "Concentra", address: "2403 S Stemmons Fwy, Lewisville, TX 75067", phone: "", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Lewisville", src: "listing" },
+  { id: "concentra-160-slaton-rd-lubbock", name: "Concentra", address: "160 Slaton Rd, Lubbock, TX 79404", phone: "", hours: "", area: "Lubbock", src: "listing" },
+  { id: "concentra-6048-marsha-sharp-fwy-w-lubbock", name: "Concentra", address: "6048 Marsha Sharp Fwy W, Lubbock, TX 79424", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Lubbock", src: "listing" },
+  { id: "carenow-10422-research-forest-dr-magnolia", name: "CareNow", address: "10422 Research Forest Dr, Magnolia, TX 77354", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Magnolia", src: "listing" },
+  { id: "carenow-1501-u-s-287-frontage-rd-mansfield", name: "CareNow", address: "1501 U.S. 287 Frontage Rd, Mansfield, TX 76063", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Mansfield", src: "listing" },
+  { id: "carenow-2901-nolana-ave-mcallen", name: "CareNow", address: "2901 Nolana Ave, McAllen, TX 78501", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "McAllen", src: "listing" },
+  { id: "carenow-5252-w-university-dr-mckinney", name: "CareNow", address: "5252 W University Dr, McKinney, TX 75071", phone: "", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "McKinney", src: "listing" },
+  { id: "carenow-6200-eldorado-pkwy-mckinney", name: "CareNow", address: "6200 Eldorado Pkwy, McKinney, TX 75070", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-5pm, Sun 8am-8pm", area: "McKinney", src: "listing" },
+  { id: "concentra-4928-samuell-blvd-mesquite", name: "Concentra", address: "4928 Samuell Blvd, Mesquite, TX 75149", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Mesquite", src: "listing" },
+  { id: "gohealth-8035-hwy-6-ste-170-missouri-city", name: "GoHealth", address: "8035 Hwy 6 Ste 170, Missouri City, TX 77459", phone: "281-947-0017", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Missouri City", src: "spec" },
+  { id: "nextlevel-8720-hwy-6-ste-400-missouri-city", name: "NextLevel", address: "8720 Hwy 6 Ste 400, Missouri City, TX 77459", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Missouri City", src: "spec" },
+  { id: "carenow-20042-eva-st-montgomery", name: "CareNow", address: "20042 Eva St, Montgomery, TX 77356", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Montgomery", src: "listing" },
+  { id: "carenow-11845-grand-pkwy-new-caney", name: "CareNow", address: "11845 Grand Pkwy, New Caney, TX 77357", phone: "", hours: "", area: "New Caney", src: "listing" },
+  { id: "carenow-6401-ne-loop-820-north-richland-hills", name: "CareNow", address: "6401 NE Loop 820, North Richland Hills, TX 76180", phone: "", hours: "", area: "North Richland Hills", src: "listing" },
+  { id: "carenow-8541-davis-blvd-north-richland-hills", name: "CareNow", address: "8541 Davis Blvd, North Richland Hills, TX 76182", phone: "", hours: "", area: "North Richland Hills", src: "listing" },
+  { id: "carenow-5233-fairmont-pkwy-ste-1-pasadena", name: "CareNow", address: "5233 Fairmont Pkwy Ste 1, Pasadena, TX 77505", phone: "713-568-0240", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Pasadena", src: "spec" },
+  { id: "nextcare-6825-spencer-hwy-pasadena", name: "NextCare", address: "6825 Spencer Hwy, Pasadena, TX 77505", phone: "281-741-0070", hours: "Mon-Sun 9am-9pm", area: "Pasadena", src: "spec" },
+  { id: "carenow-11826-broadway-st-pearland", name: "CareNow", address: "11826 Broadway St, Pearland, TX 77584", phone: "346-422-2400", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Pearland", src: "spec" },
+  { id: "carenow-2907-east-broadway-st-pearland", name: "CareNow", address: "2907 East Broadway St, Pearland, TX 77581", phone: "281-925-1970", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Pearland", src: "spec" },
+  { id: "nextlevel-8325-broadway-st-ste-220-pearland", name: "NextLevel", address: "8325 Broadway St Ste 220, Pearland, TX 77581", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Pearland", src: "spec" },
+  { id: "carenow-3821-spring-creek-pkwy-plano", name: "CareNow", address: "3821 Spring Creek Pkwy, Plano, TX 75023", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Plano", src: "listing" },
+  { id: "concentra-1300-n-central-expy-plano", name: "Concentra", address: "1300 N Central Expy, Plano, TX 75074", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Plano", src: "listing" },
+  { id: "carenow-4530-w-university-dr-prosper", name: "CareNow", address: "4530 W University Dr, Prosper, TX 75078", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Prosper", src: "listing" },
+  { id: "carenow-781-s-preston-rd-prosper", name: "CareNow", address: "781 S Preston Rd, Prosper, TX 75078", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Prosper", src: "listing" },
+  { id: "carenow-377-w-campbell-rd-richardson", name: "CareNow", address: "377 W Campbell Rd, Richardson, TX 75080", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Richardson", src: "listing" },
+  { id: "afc-18310-w-airport-blvd-ste-100-richmond", name: "AFC", address: "18310 W Airport Blvd Ste 100, Richmond, TX", phone: "832-730-4481 / 832-756-7772", hours: "Mon-Sun 8am-8pm", area: "Richmond", src: "spec" },
+  { id: "afc-3415-fm-762-ste-180-richmond", name: "AFC", address: "3415 FM 762 Ste 180, Richmond, TX 77469", phone: "281-699-5680", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-5pm", area: "Richmond", src: "spec" },
+  { id: "carenow-1530-n-us-hwy-377-roanoke", name: "CareNow", address: "1530 N US Hwy 377, Roanoke, TX 76262", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Roanoke", src: "listing" },
+  { id: "carenow-600-horizon-rd-rockwall", name: "CareNow", address: "600 Horizon Rd, Rockwall, TX 75032", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Rockwall", src: "listing" },
+  { id: "nextlevel-4002-fm-762-rd-ste-100-rosenberg", name: "NextLevel", address: "4002 FM 762 Rd Ste 100, Rosenberg, TX 77469", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Rosenberg", src: "spec" },
+  { id: "carenow-2800-s-i-35-frontage-rd-round-rock", name: "CareNow", address: "2800 S I-35 Frontage Rd, Round Rock, TX 78681", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Round Rock", src: "listing" },
+  { id: "concentra-117-louis-henna-blvd-round-rock", name: "Concentra", address: "117 Louis Henna Blvd, Round Rock, TX 78664", phone: "", hours: "Mon-Fri 8am-8pm, Sat-Sun 10am-6pm", area: "Round Rock", src: "listing" },
+  { id: "carenow-9101-lakeview-pkwy-rowlett", name: "CareNow", address: "9101 Lakeview Pkwy, Rowlett, TX 75088", phone: "", hours: "Mon-Fri 8am-10pm, Sat 8am-8pm, Sun 8am-5pm", area: "Rowlett", src: "listing" },
+  { id: "carenow-10538-potranco-rd-san-antonio", name: "CareNow", address: "10538 Potranco Rd, San Antonio, TX 78251", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Antonio", src: "listing" },
+  { id: "carenow-17122-bulverde-rd-san-antonio", name: "CareNow", address: "17122 Bulverde Rd, San Antonio, TX 78247", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Antonio", src: "listing" },
+  { id: "carenow-5410-broadway-san-antonio", name: "CareNow", address: "5410 Broadway, San Antonio, TX 78209", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Antonio", src: "listing" },
+  { id: "carenow-5755-northwest-loop-410-san-antonio", name: "CareNow", address: "5755 Northwest Loop 410, San Antonio, TX 78238", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Antonio", src: "listing" },
+  { id: "concentra-10200-broadway-san-antonio", name: "Concentra", address: "10200 Broadway, San Antonio, TX 78217", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing" },
+  { id: "concentra-12651-vance-jackson-rd-san-antonio", name: "Concentra", address: "12651 Vance Jackson Rd, San Antonio, TX 78230", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing" },
+  { id: "concentra-12702-toepperwein-rd-san-antonio", name: "Concentra", address: "12702 Toepperwein Rd, San Antonio, TX 78233", phone: "", hours: "Mon-Fri 8am-8pm, Sat-Sun 10am-6pm", area: "San Antonio", src: "listing" },
+  { id: "concentra-3453-i-35-frontage-rd-san-antonio", name: "Concentra", address: "3453 I-35 Frontage Rd, San Antonio, TX 78219", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing" },
+  { id: "concentra-400-e-quincy-st-san-antonio", name: "Concentra", address: "400 E Quincy St, San Antonio, TX 78215", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing" },
+  { id: "concentra-7555-northwest-loop-410-san-antonio", name: "Concentra", address: "7555 Northwest Loop 410, San Antonio, TX 78245", phone: "", hours: "Mon-Wed 8am-5pm, Thu 8am-8pm, Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing" },
+  { id: "carenow-920-w-interstate-hwy-2-san-juan", name: "CareNow", address: "920 W Interstate Hwy 2, San Juan, TX 78589", phone: "", hours: "", area: "San Juan", src: "listing" },
+  { id: "carenow-301-n-guadalupe-st-san-marcos", name: "CareNow", address: "301 N Guadalupe St, San Marcos, TX 78666", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Marcos", src: "listing" },
+  { id: "carenow-14775-i-35-frontage-rd-schertz", name: "CareNow", address: "14775 I-35 Frontage Rd, Schertz, TX 78154", phone: "", hours: "", area: "Schertz", src: "listing" },
+  { id: "carenow-2751-e-state-hwy-114-southlake", name: "CareNow", address: "2751 E State Hwy 114, Southlake, TX 76092", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Southlake", src: "listing" },
+  { id: "carenow-21700-kuykendahl-rd-spring", name: "CareNow", address: "21700 Kuykendahl Rd, Spring, TX 77379", phone: "", hours: "", area: "Spring", src: "listing" },
+  { id: "carenow-2540-farm-to-market-2920-spring", name: "CareNow", address: "2540 Farm to Market 2920, Spring, TX 77388", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Spring", src: "listing" },
+  { id: "carenow-7306-louetta-rd-spring", name: "CareNow", address: "7306 Louetta Rd, Spring, TX 77379", phone: "", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "Spring", src: "listing" },
+  { id: "concentra-10521-corporate-dr-stafford", name: "Concentra", address: "10521 Corporate Dr, Stafford, TX 77477", phone: "281-277-7997", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Stafford", src: "spec" },
+  { id: "afc-3551-hwy-6-sugar-land", name: "AFC", address: "3551 Hwy 6, Sugar Land, TX 77478", phone: "281-491-5742 / 832-324-9996", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Sugar Land", src: "spec" },
+  { id: "carenow-1403-hwy-6-sugar-land", name: "CareNow", address: "1403 Hwy 6, Sugar Land, TX 77478", phone: "832-260-0640", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Sugar Land", src: "spec" },
+  { id: "nextlevel-16312-southwest-fwy-sugar-land", name: "NextLevel", address: "16312 Southwest Fwy, Sugar Land, TX 77479", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Sugar Land", src: "spec" },
+  { id: "carenow-22605-tomball-pkwy-tomball", name: "CareNow", address: "22605 Tomball Pkwy, Tomball, TX 77377", phone: "", hours: "Mon-Fri 9am-9pm, Sat 9am-7pm, Sun 10am-6pm", area: "Tomball", src: "listing" },
+  { id: "concentra-5040-kinsey-dr-tyler", name: "Concentra", address: "5040 Kinsey Dr, Tyler, TX 75703", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Tyler", src: "listing" },
+  { id: "concentra-4205-franklin-ave-waco", name: "Concentra", address: "4205 Franklin Ave, Waco, TX 76710", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Waco", src: "listing" },
+  { id: "carenow-2733-fort-worth-hwy-weatherford", name: "CareNow", address: "2733 Fort Worth Hwy, Weatherford, TX 76087", phone: "", hours: "", area: "Weatherford", src: "listing" },
+  { id: "carenow-3080-e-farm-to-market-544-wylie", name: "CareNow", address: "3080 E Farm To Market 544, Wylie, TX 75098", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Wylie", src: "listing" },
 ];
 
 const STORE_NEAREST = {
-  "6": [["afc-2402-bay-area-blvd-ste-m-houston", 1.6], ["carenow-1729-s-friendswood-dr-friendswood", 5.3]],
-  "16": [["carenow-3150-gulf-fwy-s-dickinson", 2.9], ["carenow-1729-s-friendswood-dr-friendswood", 4.6]],
-  "35": [["affinity-2808-61st-st-ste-200-galveston", 0.5], ["west-isle-2027-61st-st-galveston", 0.5]],
-  "46": [["carenow-2907-east-broadway-st-pearland", 2.8], ["concentra-8508-gulf-fwy-ste-f-houston", 5.0]],
-  "81": [["carenow-1917-w-gray-st-houston", 0.5], ["carenow-2707-milam-st-houston", 2.1], ["carenow-102-w-11th-st-houston", 3.0], ["concentra-9200-hempstead-hwy-ste-137-houston", 3.5]],
-  "82": [["concentra-6545-southwest-fwy-houston", 2.3], ["carenow-14045-memorial-dr-houston", 5.6], ["carenow-1917-w-gray-st-houston", 5.8]],
-  "88": [["carenow-1917-w-gray-st-houston", 1.1], ["carenow-2707-milam-st-houston", 2.5], ["carenow-102-w-11th-st-houston", 3.5], ["concentra-9200-hempstead-hwy-ste-137-houston", 3.8]],
-  "10": [["nextcare-1202-e-nasa-parkway-houston", 3.1], ["nextlevel-2560-e-league-city-pkwy-ste-b-league-city", 4.0], ["afc-2402-bay-area-blvd-ste-m-houston", 4.1]],
-  "32": [["nextlevel-2560-e-league-city-pkwy-ste-b-league-city", 2.7], ["nextcare-1202-e-nasa-parkway-houston", 4.5]],
-  "36": [["afc-6040-garth-rd-ste-10-baytown", 1.0], ["nextlevel-7710-garth-rd-ste-a-baytown", 2.7]],
-  "45": [["concentra-8505-gulf-fwy-ste-f-houston", 2.9], ["carenow-5233-fairmont-pkwy-ste-1-pasadena", 4.7]],
-  "52": [["carenow-1729-s-friendswood-dr-friendswood", 1.8], ["nextcare-1202-e-nasa-parkway-houston", 3.9]],
-  "71": [["carenow-1917-w-gray-st-houston", 3.0], ["concentra-6545-southwest-fwy-houston", 3.5]],
-  "199": [["carenow-5233-fairmont-pkwy-ste-1-pasadena", 1.2], ["nextcare-6825-spencer-hwy-pasadena", 2.9]],
-  "201": [["afc-8850-spencer-hwy-ste-105-la-porte", 2.0], ["concentra-1309-west-fairmont-pkwy-ste-x-la-porte", 2.5]],
-  "8": [["nextlevel-21700-kingsland-blvd-ste-104-katy", 1.4], ["carenow-6501-s-fry-rd-ste-1000-katy", 3.2]],
-  "12": [["carenow-14045-memorial-dr-houston", 1.0], ["concentra-12345-katy-fwy-houston", 1.0]],
-  "41": [["carenow-6501-s-fry-rd-ste-1000-katy", 1.8], ["nextlevel-9722-gaston-rd-ste-190-katy", 2.2]],
-  "49": [["gohealth-12740-memorial-dr-ste-100-houston", 0.6], ["carenow-14045-memorial-dr-houston", 1.7], ["concentra-12345-katy-fwy-houston", 2.5]],
-  "92": [["afc-18310-w-airport-blvd-ste-100-richmond", 1.1], ["carenow-6501-s-fry-rd-ste-1000-katy", 4.7]],
-  "139": [["nextlevel-1420-katy-fort-bend-rd-ste-105-katy", 0.8], ["concentra-25805-katy-fwy-ste-600-katy", 1.7], ["carenow-6501-s-fry-rd-ste-1000-katy", 5.1]],
-  "140": [["nextlevel-10625-spring-green-blvd-ste-200-katy", 1.1], ["carenow-6501-s-fry-rd-ste-1000-katy", 2.5]],
-  "166": [["nextlevel-9722-gaston-rd-ste-190-katy", 0.0], ["carenow-6501-s-fry-rd-ste-1000-katy", 2.8]],
-  "3": [["gohealth-11700-westheimer-rd-ste-j-houston", 3.7], ["carenow-14045-memorial-dr-houston", 4.6], ["concentra-12345-katy-fwy-houston", 4.8]],
-  "18": [["afc-18310-w-airport-blvd-ste-100-richmond", 3.9], ["concentra-10521-corporate-dr-stafford", 4.2]],
-  "39": [["nextlevel-4002-fm-762-rd-ste-100-rosenberg", 0.1], ["afc-3415-fm-762-ste-180-richmond", 0.6]],
-  "43": [["concentra-10521-corporate-dr-stafford", 0.8], ["afc-3551-hwy-6-sugar-land", 2.1], ["carenow-1403-hwy-6-sugar-land", 2.4], ["nextlevel-16312-southwest-fwy-sugar-land", 2.4]],
-  "47": [["afc-3551-hwy-6-sugar-land", 1.9], ["nextlevel-8720-hwy-6-ste-400-missouri-city", 3.2], ["carenow-1403-hwy-6-sugar-land", 4.0]],
-  "101": [["carenow-1403-hwy-6-sugar-land", 2.8], ["nextlevel-16312-southwest-fwy-sugar-land", 3.0]],
-  "176": [["nextlevel-8720-hwy-6-ste-400-missouri-city", 0.4], ["gohealth-8035-hwy-6-ste-170-missouri-city", 4.1]],
-  "219": [["carenow-11826-broadway-st-pearland", 2.1], ["nextlevel-8325-broadway-st-ste-220-pearland", 2.8]],
-  "2": [["gohealth-11700-westheimer-rd-ste-j-houston", 0.4], ["afc-5568-weslayan-st-houston", 1.5], ["carenow-14045-memorial-dr-houston", 2.3]],
-  "5": [["concentra-6545-southwest-fwy-houston", 1.7], ["carenow-14045-memorial-dr-houston", 5.3]],
-  "23": [["nextlevel-5749-san-felipe-houston", 1.5], ["carenow-1917-w-gray-st-houston", 3.9]],
-  "24": [["nextlevel-5749-san-felipe-houston", 0.5], ["carenow-1917-w-gray-st-houston", 5.0]],
-  "42": [["concentra-6545-southwest-fwy-houston", 2.7], ["nextlevel-4936-beechnut-houston", 4.0]],
-  "108": [["nextlevel-101-winding-way-ste-a-lake-jackson", 9.4], ["concentra-1002-abc-ave-ste-600-freeport", 11.5]],
-  "172": [["matagorda-regional-medical-center-104-7th-st-bay-city", 2.4]],
-  "189": [["nextlevel-4936-beechnut-houston", 2.4], ["afc-5568-weslayan-st-houston", 2.6]],
-  "0": [["carenow-2707-milam-st-houston", 0.2], ["carenow-1917-w-gray-st-houston", 1.6]],
-  "21": [["afc-5568-weslayan-st-houston", 0.8], ["carenow-1917-w-gray-st-houston", 3.2]],
-  "59": [["carenow-1917-w-gray-st-houston", 1.2], ["afc-107-yale-st-ste-200-houston", 1.5]],
+  "0": [["carenow-2707-milam-st-houston", 0.2], ["carenow-1917-w-gray-st-houston", 1.6], ["concentra-2004-leeland-st-houston", 3.2, 1], ["concentra-1414-s-loop-w-houston", 3.9, 1]],
+  "1": [["carenow-300-northpark-dr-kingwood", 0, 1], ["carenow-7072-farm-to-market-1960-rd-e-humble", 3.7, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 13.7, 1], ["concentra-401-greens-rd-houston", 15.4, 1]],
+  "2": [["gohealth-11700-westheimer-rd-ste-j-houston", 0.4], ["concentra-12345-katy-fwy-houston", 1.8, 1], ["carenow-14045-memorial-dr-houston", 2.3], ["carenow-7107-s-texas-6-houston", 4.7, 1], ["concentra-6545-southwest-fwy-houston", 6.8, 1]],
+  "3": [["carenow-1403-hwy-6-sugar-land", 0, 1], ["concentra-10521-corporate-dr-stafford", 2.4, 1], ["carenow-7107-s-texas-6-houston", 5.8, 1], ["concentra-6545-southwest-fwy-houston", 7.5, 1]],
+  "4": [["concentra-124-b-farm-to-market-1960-rd-e-houston", 2.3, 1], ["carenow-2540-farm-to-market-2920-spring", 2.7, 1], ["carenow-21700-kuykendahl-rd-spring", 5.3, 1], ["concentra-401-greens-rd-houston", 6.5, 1]],
+  "5": [["carenow-2727-dunvale-rd-houston", 0, 1], ["concentra-6545-southwest-fwy-houston", 1.7], ["concentra-1000-n-post-oak-rd-houston", 4.6, 1], ["carenow-14045-memorial-dr-houston", 5.3]],
+  "6": [["afc-2402-bay-area-blvd-ste-m-houston", 1.6], ["carenow-1729-s-friendswood-dr-friendswood", 5.3], ["carenow-5233-fairmont-pkwy-ste-1-pasadena", 5.6, 1], ["concentra-125-e-8th-st-deer-park", 7.7, 1], ["concentra-1309-west-fairmont-pkwy-ste-x-la-porte", 9.3, 1]],
+  "7": [["carenow-20042-eva-st-montgomery", 36.5, 1], ["carenow-22605-tomball-pkwy-tomball", 49, 1], ["concentra-25805-katy-fwy-ste-600-katy", 60.7, 1], ["concentra-6360-w-sam-houston-pkwy-n-houston", 62.9, 1]],
+  "8": [["nextlevel-21700-kingsland-blvd-ste-104-katy", 1.4], ["carenow-6501-s-fry-rd-ste-1000-katy", 3.2], ["concentra-25805-katy-fwy-ste-600-katy", 5.9, 1], ["carenow-7107-s-texas-6-houston", 6, 1], ["concentra-12345-katy-fwy-houston", 8.3, 1]],
+  "9": [["carenow-8470-hwy-6-n-houston", 0, 1], ["carenow-9110-barker-cypress-rd-cypress", 3.3, 1], ["concentra-6360-w-sam-houston-pkwy-n-houston", 4.6, 1], ["concentra-17410-northwest-fwy-houston", 7.3, 1]],
+  "10": [["nextcare-1202-e-nasa-parkway-houston", 3.1], ["nextlevel-2560-e-league-city-pkwy-ste-b-league-city", 4], ["afc-2402-bay-area-blvd-ste-m-houston", 4.1], ["concentra-1309-west-fairmont-pkwy-ste-x-la-porte", 7.3, 1], ["carenow-5233-fairmont-pkwy-ste-1-pasadena", 8.1, 1], ["concentra-125-e-8th-st-deer-park", 8.6, 1], ["carenow-3150-gulf-fwy-s-dickinson", 8.6, 1]],
+  "11": [["carenow-3906-n-lamar-blvd-austin", 2.7, 1], ["carenow-5033-w-us-hwy-290-service-rd-austin", 3.2, 1], ["concentra-3801-s-lamar-blvd-austin", 3.3, 1], ["concentra-2000-w-anderson-ln-austin", 4.2, 1]],
+  "12": [["carenow-14045-memorial-dr-houston", 1], ["concentra-12345-katy-fwy-houston", 1], ["carenow-2727-dunvale-rd-houston", 5.3, 1], ["concentra-6360-w-sam-houston-pkwy-n-houston", 6, 1]],
+  "13": [["carenow-9110-barker-cypress-rd-cypress", 4.1, 1], ["carenow-8470-hwy-6-n-houston", 6.8, 1], ["concentra-25805-katy-fwy-ste-600-katy", 8.5, 1], ["concentra-12345-katy-fwy-houston", 9.2, 1]],
+  "14": [["carenow-21700-kuykendahl-rd-spring", 0, 1], ["carenow-7306-louetta-rd-spring", 0, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 7.5, 1], ["concentra-401-greens-rd-houston", 10.8, 1]],
+  "15": [["carenow-2540-farm-to-market-2920-spring", 6.1, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 7.6, 1], ["carenow-21700-kuykendahl-rd-spring", 9, 1], ["concentra-401-greens-rd-houston", 13.6, 1]],
+  "16": [["carenow-3150-gulf-fwy-s-dickinson", 2.9], ["carenow-1729-s-friendswood-dr-friendswood", 4.6], ["concentra-125-e-8th-st-deer-park", 11.5, 1], ["concentra-1309-west-fairmont-pkwy-ste-x-la-porte", 12.1, 1]],
+  "17": [["carenow-1218-w-mcdermott-dr-allen", 0, 1], ["carenow-3821-spring-creek-pkwy-plano", 5.6, 1], ["concentra-1300-n-central-expy-plano", 6.3, 1], ["concentra-8756-teel-pkwy-frisco", 8.8, 1]],
+  "19": [["concentra-17410-northwest-fwy-houston", 0, 1], ["concentra-6360-w-sam-houston-pkwy-n-houston", 3.4, 1], ["carenow-8470-hwy-6-n-houston", 7.3, 1], ["carenow-14045-memorial-dr-houston", 8.1, 1]],
+  "20": [["concentra-10909-east-fwy-houston", 4.6, 1], ["concentra-8799-n-loop-e-fwy-houston", 4.6, 1], ["carenow-9055-spencer-hwy-deer-park", 8, 1], ["carenow-5233-fairmont-pkwy-ste-1-pasadena", 9.5, 1]],
+  "21": [["afc-5568-weslayan-st-houston", 0.8], ["concentra-1414-s-loop-w-houston", 1.3, 1], ["carenow-2707-milam-st-houston", 2.6, 1], ["carenow-1917-w-gray-st-houston", 3.2], ["concentra-2004-leeland-st-houston", 4.8, 1]],
+  "22": [["carenow-7072-farm-to-market-1960-rd-e-humble", 0, 1], ["carenow-300-northpark-dr-kingwood", 3.7, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 14.2, 1], ["concentra-401-greens-rd-houston", 14.3, 1]],
+  "23": [["nextlevel-5749-san-felipe-houston", 1.5], ["carenow-2727-dunvale-rd-houston", 3.3, 1], ["carenow-1917-w-gray-st-houston", 3.9], ["concentra-1000-n-post-oak-rd-houston", 4, 1], ["concentra-6545-southwest-fwy-houston", 4.6, 1]],
+  "24": [["nextlevel-5749-san-felipe-houston", 0.5], ["carenow-2727-dunvale-rd-houston", 2, 1], ["concentra-1000-n-post-oak-rd-houston", 3.8, 1], ["concentra-6545-southwest-fwy-houston", 3.8, 1], ["carenow-1917-w-gray-st-houston", 5]],
+  "25": [["carenow-20042-eva-st-montgomery", 10.1, 1], ["carenow-1150-w-dallas-st-conroe", 10.3, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 30.2, 1], ["concentra-401-greens-rd-houston", 36.1, 1]],
+  "27": [["carenow-5033-w-us-hwy-290-service-rd-austin", 9.5, 1], ["carenow-1567-main-st-buda", 9.8, 1], ["concentra-3801-s-lamar-blvd-austin", 10.8, 1], ["concentra-2171-woodward-st-austin", 11.8, 1]],
+  "28": [["carenow-2540-farm-to-market-2920-spring", 0, 1], ["carenow-21700-kuykendahl-rd-spring", 3.9, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 4.2, 1], ["concentra-401-greens-rd-houston", 9.1, 1]],
+  "29": [["carenow-10422-research-forest-dr-magnolia", 2.1, 1], ["carenow-1150-w-dallas-st-conroe", 8.3, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 14.9, 1], ["concentra-401-greens-rd-houston", 20.6, 1]],
+  "30": [["carenow-1150-w-dallas-st-conroe", 4.6, 1], ["carenow-10422-research-forest-dr-magnolia", 6.2, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 22.1, 1], ["concentra-401-greens-rd-houston", 27.9, 1]],
+  "31": [["carenow-7072-farm-to-market-1960-rd-e-humble", 61.3, 1], ["carenow-300-northpark-dr-kingwood", 61.4, 1], ["concentra-1309-west-fairmont-pkwy-ste-x-la-porte", 61.8, 1], ["concentra-125-e-8th-st-deer-park", 65.7, 1]],
+  "32": [["nextlevel-2560-e-league-city-pkwy-ste-b-league-city", 2.7], ["nextcare-1202-e-nasa-parkway-houston", 4.5], ["carenow-3150-gulf-fwy-s-dickinson", 4.5, 1], ["carenow-1729-s-friendswood-dr-friendswood", 9.6, 1], ["concentra-1309-west-fairmont-pkwy-ste-x-la-porte", 11.5, 1], ["concentra-125-e-8th-st-deer-park", 12.4, 1]],
+  "33": [["carenow-1150-w-dallas-st-conroe", 4.6, 1], ["carenow-10422-research-forest-dr-magnolia", 6.2, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 22.1, 1], ["concentra-401-greens-rd-houston", 27.9, 1]],
+  "34": [["carenow-1150-w-dallas-st-conroe", 4.6, 1], ["carenow-10422-research-forest-dr-magnolia", 6.2, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 22.1, 1], ["concentra-401-greens-rd-houston", 27.9, 1]],
+  "35": [["affinity-2808-61st-st-ste-200-galveston", 0.5], ["west-isle-2027-61st-st-galveston", 0.5], ["carenow-3150-gulf-fwy-s-dickinson", 17.6, 1], ["carenow-1729-s-friendswood-dr-friendswood", 27.4, 1], ["concentra-1309-west-fairmont-pkwy-ste-x-la-porte", 31.4, 1], ["concentra-125-e-8th-st-deer-park", 33.1, 1]],
+  "36": [["afc-6040-garth-rd-ste-10-baytown", 1], ["nextlevel-7710-garth-rd-ste-a-baytown", 2.7], ["concentra-1309-west-fairmont-pkwy-ste-x-la-porte", 7.5, 1], ["concentra-125-e-8th-st-deer-park", 11, 1], ["carenow-9055-spencer-hwy-deer-park", 11, 1], ["carenow-5233-fairmont-pkwy-ste-1-pasadena", 13.4, 1]],
+  "37": [["carenow-20042-eva-st-montgomery", 37.6, 1], ["carenow-10422-research-forest-dr-magnolia", 52.2, 1], ["concentra-25805-katy-fwy-ste-600-katy", 66.3, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 67.4, 1]],
+  "38": [["carenow-1920-e-riverside-dr-austin", 26.5, 1], ["concentra-10001-s-i-35-frontage-rd-austin", 27, 1], ["concentra-2171-woodward-st-austin", 27.4, 1], ["carenow-12415-n-interstate-35-frontage-rd-austin", 28.1, 1]],
+  "39": [["nextlevel-4002-fm-762-rd-ste-100-rosenberg", 0.1], ["afc-3415-fm-762-ste-180-richmond", 0.6], ["carenow-1403-hwy-6-sugar-land", 8.9, 1], ["concentra-10521-corporate-dr-stafford", 11.1, 1], ["carenow-7107-s-texas-6-houston", 11.1, 1], ["concentra-25805-katy-fwy-ste-600-katy", 14.3, 1]],
+  "40": [["carenow-8470-hwy-6-n-houston", 3.6, 1], ["carenow-9110-barker-cypress-rd-cypress", 3.6, 1], ["concentra-6360-w-sam-houston-pkwy-n-houston", 5, 1], ["concentra-12345-katy-fwy-houston", 6.2, 1]],
+  "41": [["concentra-25805-katy-fwy-ste-600-katy", 0, 1], ["carenow-6501-s-fry-rd-ste-1000-katy", 1.8], ["nextlevel-9722-gaston-rd-ste-190-katy", 2.2], ["carenow-7107-s-texas-6-houston", 11.2, 1], ["concentra-12345-katy-fwy-houston", 14.1, 1]],
+  "42": [["concentra-6545-southwest-fwy-houston", 2.7], ["carenow-2727-dunvale-rd-houston", 3.2, 1], ["nextlevel-4936-beechnut-houston", 4], ["concentra-10521-corporate-dr-stafford", 5.8, 1], ["carenow-1403-hwy-6-sugar-land", 7.5, 1]],
+  "43": [["concentra-10521-corporate-dr-stafford", 0.8], ["afc-3551-hwy-6-sugar-land", 2.1], ["carenow-1403-hwy-6-sugar-land", 2.4], ["nextlevel-16312-southwest-fwy-sugar-land", 2.4], ["carenow-7107-s-texas-6-houston", 5.8, 1], ["concentra-6545-southwest-fwy-houston", 7.5, 1]],
+  "44": [["carenow-20042-eva-st-montgomery", 16.1, 1], ["carenow-1150-w-dallas-st-conroe", 24.2, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 44.4, 1], ["concentra-401-greens-rd-houston", 50.3, 1]],
+  "45": [["concentra-8508-gulf-fwy-ste-f-houston", 2.9], ["carenow-5233-fairmont-pkwy-ste-1-pasadena", 4.7], ["carenow-2907-east-broadway-st-pearland", 6, 1], ["concentra-125-e-8th-st-deer-park", 6.8, 1]],
+  "46": [["carenow-2907-east-broadway-st-pearland", 2.8], ["concentra-8508-gulf-fwy-ste-f-houston", 5], ["carenow-1729-s-friendswood-dr-friendswood", 5.4, 1], ["concentra-125-e-8th-st-deer-park", 8.6, 1]],
+  "47": [["afc-3551-hwy-6-sugar-land", 1.9], ["nextlevel-8720-hwy-6-ste-400-missouri-city", 3.2], ["concentra-10521-corporate-dr-stafford", 3.8, 1], ["carenow-1403-hwy-6-sugar-land", 4], ["concentra-6545-southwest-fwy-houston", 6.5, 1], ["carenow-2727-dunvale-rd-houston", 9.6, 1]],
+  "48": [["carenow-8470-hwy-6-n-houston", 0, 1], ["carenow-9110-barker-cypress-rd-cypress", 3.3, 1], ["concentra-6360-w-sam-houston-pkwy-n-houston", 4.6, 1], ["concentra-17410-northwest-fwy-houston", 7.3, 1]],
+  "49": [["gohealth-12740-memorial-dr-ste-100-houston", 0.6], ["carenow-14045-memorial-dr-houston", 1.7], ["concentra-12345-katy-fwy-houston", 2.5], ["carenow-2727-dunvale-rd-houston", 5.3, 1], ["concentra-6360-w-sam-houston-pkwy-n-houston", 6, 1]],
+  "51": [["carenow-9110-barker-cypress-rd-cypress", 4.1, 1], ["carenow-8470-hwy-6-n-houston", 6.8, 1], ["concentra-25805-katy-fwy-ste-600-katy", 8.5, 1], ["concentra-12345-katy-fwy-houston", 9.2, 1]],
+  "52": [["carenow-1729-s-friendswood-dr-friendswood", 1.8], ["nextcare-1202-e-nasa-parkway-houston", 3.9], ["carenow-5233-fairmont-pkwy-ste-1-pasadena", 6.6, 1], ["concentra-125-e-8th-st-deer-park", 8.8, 1], ["concentra-1309-west-fairmont-pkwy-ste-x-la-porte", 10.7, 1]],
+  "53": [["concentra-1000-n-post-oak-rd-houston", 2.4, 1], ["carenow-2727-dunvale-rd-houston", 2.4, 1], ["concentra-12345-katy-fwy-houston", 4.7, 1], ["carenow-14045-memorial-dr-houston", 4.7, 1]],
+  "55": [["carenow-8470-hwy-6-n-houston", 5.7, 1], ["carenow-22605-tomball-pkwy-tomball", 6.5, 1], ["concentra-6360-w-sam-houston-pkwy-n-houston", 8.7, 1], ["concentra-17410-northwest-fwy-houston", 9.6, 1]],
+  "56": [["carenow-21700-kuykendahl-rd-spring", 5, 1], ["carenow-7306-louetta-rd-spring", 5, 1], ["concentra-17410-northwest-fwy-houston", 7.8, 1], ["concentra-6360-w-sam-houston-pkwy-n-houston", 8.1, 1]],
+  "57": [["carenow-20042-eva-st-montgomery", 37.6, 1], ["carenow-10422-research-forest-dr-magnolia", 52.2, 1], ["concentra-25805-katy-fwy-ste-600-katy", 66.3, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 67.4, 1]],
+  "58": [["concentra-13831-us-183-hwy-austin", 2.6, 1], ["concentra-9333-research-blvd-austin", 3.5, 1], ["carenow-10001-research-blvd-austin", 3.5, 1], ["carenow-10625-w-parmer-ln-austin", 3.9, 1]],
+  "59": [["carenow-1917-w-gray-st-houston", 1.2], ["afc-107-yale-st-ste-200-houston", 1.5], ["concentra-9200-hempstead-hwy-ste-137-houston", 1.8, 1], ["carenow-102-w-11th-st-houston", 1.8, 1], ["concentra-2004-leeland-st-houston", 4.2, 1]],
+  "60": [["concentra-2000-w-anderson-ln-austin", 2, 1], ["carenow-7212-burnet-rd-austin", 2, 1], ["carenow-3906-n-lamar-blvd-austin", 2.4, 1], ["concentra-9333-research-blvd-austin", 5.9, 1]],
+  "61": [["carenow-5033-w-us-hwy-290-service-rd-austin", 3.6, 1], ["concentra-3801-s-lamar-blvd-austin", 4.5, 1], ["carenow-208-w-ben-white-blvd-austin", 4.5, 1], ["concentra-2171-woodward-st-austin", 7, 1]],
+  "62": [["concentra-9333-research-blvd-austin", 0, 1], ["carenow-10001-research-blvd-austin", 0, 1], ["concentra-13831-us-183-hwy-austin", 2.9, 1], ["carenow-7212-burnet-rd-austin", 4.3, 1]],
+  "63": [["concentra-117-louis-henna-blvd-round-rock", 0, 1], ["carenow-2800-s-i-35-frontage-rd-round-rock", 0.8, 1], ["carenow-10625-w-parmer-ln-austin", 4.8, 1], ["concentra-9333-research-blvd-austin", 9.2, 1]],
+  "64": [["concentra-2171-woodward-st-austin", 4.6, 1], ["concentra-3801-s-lamar-blvd-austin", 5.8, 1], ["carenow-208-w-ben-white-blvd-austin", 5.8, 1], ["carenow-517-s-lamar-blvd-austin", 5.8, 1]],
+  "65": [["carenow-2303-ranch-rd-620-s-austin", 3.5, 1], ["carenow-5033-w-us-hwy-290-service-rd-austin", 10.1, 1], ["concentra-13831-us-183-hwy-austin", 12.7, 1], ["concentra-3801-s-lamar-blvd-austin", 14.4, 1]],
+  "66": [["concentra-4205-franklin-ave-waco", 32.3, 1], ["carenow-1205-s-i-35-frontage-rd-georgetown", 36.5, 1], ["carenow-1205-south-i-35-georgetown", 38.7, 1], ["concentra-117-louis-henna-blvd-round-rock", 43.8, 1]],
+  "67": [["concentra-4025-s-padre-island-dr-corpus-christi", 82, 1], ["carenow-301-n-guadalupe-st-san-marcos", 89.8, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 90.6, 1], ["carenow-14775-i-35-frontage-rd-schertz", 91.4, 1]],
+  "68": [["concentra-4025-s-padre-island-dr-corpus-christi", 2.7, 1], ["carenow-293-e-trenton-rd-edinburg", 111, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 114.9, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 134.6, 1]],
+  "69": [["concentra-12702-toepperwein-rd-san-antonio", 0, 1], ["carenow-17122-bulverde-rd-san-antonio", 3.3, 1], ["concentra-10200-broadway-san-antonio", 3.5, 1], ["carenow-14775-i-35-frontage-rd-schertz", 5.4, 1]],
+  "71": [["carenow-2707-milam-st-houston", 2.6, 1], ["concentra-1414-s-loop-w-houston", 2.7, 1], ["carenow-1917-w-gray-st-houston", 3], ["concentra-6545-southwest-fwy-houston", 3.5]],
+  "73": [["concentra-4205-franklin-ave-waco", 2.4, 1], ["carenow-1205-s-i-35-frontage-rd-georgetown", 68.3, 1], ["carenow-1205-south-i-35-georgetown", 70.1, 1], ["concentra-117-louis-henna-blvd-round-rock", 75.7, 1]],
+  "74": [["concentra-12651-vance-jackson-rd-san-antonio", 49.4, 1], ["carenow-10538-potranco-rd-san-antonio", 49.6, 1], ["concentra-7555-northwest-loop-410-san-antonio", 50.8, 1], ["carenow-5755-northwest-loop-410-san-antonio", 51.5, 1]],
+  "75": [["carenow-1205-south-i-35-georgetown", 33.3, 1], ["carenow-1205-s-i-35-frontage-rd-georgetown", 33.5, 1], ["concentra-4205-franklin-ave-waco", 40.2, 1], ["concentra-117-louis-henna-blvd-round-rock", 41.6, 1]],
+  "76": [["carenow-4810-gattis-school-rd-hutto", 18.1, 1], ["carenow-12415-n-interstate-35-frontage-rd-austin", 18.7, 1], ["concentra-2000-w-anderson-ln-austin", 21.4, 1], ["concentra-117-louis-henna-blvd-round-rock", 22, 1]],
+  "77": [["carenow-11521-ranch-rd-620-n-austin", 0, 1], ["concentra-13831-us-183-hwy-austin", 2.2, 1], ["concentra-9333-research-blvd-austin", 5.1, 1], ["carenow-10001-research-blvd-austin", 5.1, 1]],
+  "78": [["carenow-2901-nolana-ave-mcallen", 2.8, 1], ["carenow-293-e-trenton-rd-edinburg", 3.3, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 114.4, 1], ["concentra-7555-northwest-loop-410-san-antonio", 220.4, 1]],
+  "79": [["concentra-4025-s-padre-island-dr-corpus-christi", 19.6, 1], ["carenow-293-e-trenton-rd-edinburg", 109.1, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 113.6, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 120.6, 1]],
+  "80": [["carenow-2733-fort-worth-hwy-weatherford", 91.1, 1], ["carenow-2520-w-university-dr-denton", 91.9, 1], ["concentra-2215-s-loop-288-denton", 93.4, 1], ["concentra-7214-crawford-rd-argyle", 94.9, 1]],
+  "81": [["carenow-1917-w-gray-st-houston", 0.5], ["carenow-2707-milam-st-houston", 2.1], ["carenow-102-w-11th-st-houston", 3], ["concentra-9200-hempstead-hwy-ste-137-houston", 3.5], ["concentra-2004-leeland-st-houston", 4, 1]],
+  "82": [["concentra-6545-southwest-fwy-houston", 2.3], ["concentra-1000-n-post-oak-rd-houston", 3.8, 1], ["carenow-14045-memorial-dr-houston", 5.6], ["carenow-1917-w-gray-st-houston", 5.8]],
+  "83": [["concentra-4025-s-padre-island-dr-corpus-christi", 1.3, 1], ["carenow-293-e-trenton-rd-edinburg", 110.8, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 114.7, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 131.9, 1]],
+  "84": [["concentra-1610-n-zaragoza-rd-el-paso", 0.4, 1], ["carenow-9640-montwood-dr-el-paso", 23.3, 1], ["concentra-6320-gtwy-blvd-e-el-paso", 27.4, 1], ["carenow-7845-n-mesa-st-el-paso", 37, 1]],
+  "85": [["concentra-4025-s-padre-island-dr-corpus-christi", 8.2, 1], ["carenow-293-e-trenton-rd-edinburg", 108, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 111.7, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 140.2, 1]],
+  "86": [["concentra-4025-s-padre-island-dr-corpus-christi", 1.3, 1], ["carenow-293-e-trenton-rd-edinburg", 110.8, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 114.7, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 131.9, 1]],
+  "87": [["concentra-4025-s-padre-island-dr-corpus-christi", 4, 1], ["carenow-293-e-trenton-rd-edinburg", 108.9, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 112.7, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 136.1, 1]],
+  "88": [["carenow-1917-w-gray-st-houston", 1.1], ["carenow-2707-milam-st-houston", 2.5], ["carenow-102-w-11th-st-houston", 3.5], ["concentra-9200-hempstead-hwy-ste-137-houston", 3.8], ["concentra-2004-leeland-st-houston", 4, 1]],
+  "89": [["carenow-2540-farm-to-market-2920-spring", 4.3, 1], ["carenow-21700-kuykendahl-rd-spring", 4.9, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 8.3, 1], ["concentra-401-greens-rd-houston", 13.5, 1]],
+  "90": [["carenow-4501-lemmon-ave-dallas", 1.7, 1], ["concentra-1450-empire-central-dr-dallas", 2, 1], ["concentra-2920-n-stemmons-fwy-dallas", 2, 1], ["carenow-2404-mckinney-ave-dallas", 3.1, 1]],
+  "91": [["concentra-1000-n-post-oak-rd-houston", 2.1, 1], ["concentra-17410-northwest-fwy-houston", 4.1, 1], ["carenow-14045-memorial-dr-houston", 5.4, 1], ["carenow-2727-dunvale-rd-houston", 5.6, 1]],
+  "92": [["afc-18310-w-airport-blvd-ste-100-richmond", 1.1], ["carenow-6501-s-fry-rd-ste-1000-katy", 4.7], ["carenow-7107-s-texas-6-houston", 5.1, 1], ["concentra-25805-katy-fwy-ste-600-katy", 8.2, 1], ["concentra-10521-corporate-dr-stafford", 10, 1]],
+  "93": [["carenow-22605-tomball-pkwy-tomball", 43.8, 1], ["carenow-20042-eva-st-montgomery", 45.2, 1], ["concentra-25805-katy-fwy-ste-600-katy", 45.7, 1], ["concentra-6360-w-sam-houston-pkwy-n-houston", 53.8, 1]],
+  "94": [["carenow-7845-n-mesa-st-el-paso", 3.7, 1], ["concentra-6320-gtwy-blvd-e-el-paso", 7.9, 1], ["carenow-9640-montwood-dr-el-paso", 11, 1], ["concentra-1610-n-zaragoza-rd-el-paso", 14.6, 1]],
+  "95": [["carenow-1205-south-i-35-georgetown", 0, 1], ["carenow-1205-s-i-35-frontage-rd-georgetown", 4.8, 1], ["concentra-117-louis-henna-blvd-round-rock", 10, 1], ["concentra-13831-us-183-hwy-austin", 15.4, 1]],
+  "98": [["concentra-400-e-quincy-st-san-antonio", 6.3, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 8.4, 1], ["carenow-5410-broadway-san-antonio", 8.7, 1], ["carenow-5755-northwest-loop-410-san-antonio", 12.7, 1]],
+  "100": [["concentra-12651-vance-jackson-rd-san-antonio", 3.9, 1], ["carenow-10538-potranco-rd-san-antonio", 7.5, 1], ["carenow-5755-northwest-loop-410-san-antonio", 7.6, 1], ["concentra-7555-northwest-loop-410-san-antonio", 10.9, 1]],
+  "101": [["carenow-1403-hwy-6-sugar-land", 2.8], ["nextlevel-16312-southwest-fwy-sugar-land", 3], ["concentra-10521-corporate-dr-stafford", 3.8, 1], ["carenow-7107-s-texas-6-houston", 8.5, 1], ["concentra-6545-southwest-fwy-houston", 9.6, 1]],
+  "102": [["concentra-4025-s-padre-island-dr-corpus-christi", 12, 1], ["carenow-293-e-trenton-rd-edinburg", 123.6, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 124.2, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 127.6, 1]],
+  "103": [["concentra-4205-franklin-ave-waco", 2.4, 1], ["carenow-1205-s-i-35-frontage-rd-georgetown", 68.3, 1], ["carenow-1205-south-i-35-georgetown", 70.1, 1], ["concentra-117-louis-henna-blvd-round-rock", 75.7, 1]],
+  "104": [["concentra-4025-s-padre-island-dr-corpus-christi", 2.7, 1], ["carenow-293-e-trenton-rd-edinburg", 111, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 114.9, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 134.6, 1]],
+  "105": [["carenow-7845-n-mesa-st-el-paso", 0, 1], ["concentra-6320-gtwy-blvd-e-el-paso", 11.6, 1], ["carenow-9640-montwood-dr-el-paso", 14.7, 1], ["concentra-1610-n-zaragoza-rd-el-paso", 18.3, 1]],
+  "106": [["carenow-301-n-guadalupe-st-san-marcos", 13.2, 1], ["carenow-14775-i-35-frontage-rd-schertz", 15.8, 1], ["concentra-12702-toepperwein-rd-san-antonio", 20.9, 1], ["concentra-10200-broadway-san-antonio", 24.3, 1]],
+  "107": [["concentra-6048-marsha-sharp-fwy-w-lubbock", 0, 1], ["concentra-160-slaton-rd-lubbock", 5.9, 1], ["carenow-2733-fort-worth-hwy-weatherford", 251.2, 1], ["carenow-454-jim-wright-fwy-fort-worth", 261.6, 1]],
+  "108": [["nextlevel-101-winding-way-ste-a-lake-jackson", 9.4], ["concentra-1002-abc-ave-ste-600-freeport", 11.5], ["carenow-11826-broadway-st-pearland", 26, 1], ["carenow-1729-s-friendswood-dr-friendswood", 28.3, 1], ["concentra-10521-corporate-dr-stafford", 31.4, 1]],
+  "109": [["carenow-20042-eva-st-montgomery", 0, 1], ["carenow-10422-research-forest-dr-magnolia", 17.2, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 34.2, 1], ["concentra-401-greens-rd-houston", 39.7, 1]],
+  "110": [["carenow-17122-bulverde-rd-san-antonio", 7.3, 1], ["concentra-12651-vance-jackson-rd-san-antonio", 8.6, 1], ["concentra-10200-broadway-san-antonio", 9.3, 1], ["carenow-5410-broadway-san-antonio", 12.3, 1]],
+  "111": [["carenow-301-n-guadalupe-st-san-marcos", 13.2, 1], ["carenow-14775-i-35-frontage-rd-schertz", 15.8, 1], ["concentra-12702-toepperwein-rd-san-antonio", 20.9, 1], ["concentra-10200-broadway-san-antonio", 24.3, 1]],
+  "112": [["carenow-2303-ranch-rd-620-s-austin", 24.5, 1], ["carenow-144-s-brook-dr-leander", 24.8, 1], ["concentra-13831-us-183-hwy-austin", 30.5, 1], ["concentra-9333-research-blvd-austin", 33.4, 1]],
+  "113": [["carenow-10538-potranco-rd-san-antonio", 3.3, 1], ["carenow-5755-northwest-loop-410-san-antonio", 4.9, 1], ["concentra-7555-northwest-loop-410-san-antonio", 6.1, 1], ["concentra-12651-vance-jackson-rd-san-antonio", 7.4, 1]],
+  "114": [["carenow-301-n-guadalupe-st-san-marcos", 0, 1], ["carenow-1567-main-st-buda", 15.8, 1], ["concentra-10001-s-i-35-frontage-rd-austin", 20.6, 1], ["concentra-2171-woodward-st-austin", 24.5, 1]],
+  "115": [["concentra-1450-empire-central-dr-dallas", 3.7, 1], ["concentra-2920-n-stemmons-fwy-dallas", 3.7, 1], ["carenow-12801-midway-rd-dallas", 4.7, 1], ["carenow-4501-lemmon-ave-dallas", 4.7, 1]],
+  "116": [["carenow-1530-n-us-hwy-377-roanoke", 0, 1], ["carenow-2751-e-state-hwy-114-southlake", 6.1, 1], ["concentra-7214-crawford-rd-argyle", 6.6, 1], ["concentra-4060-sandshell-dr-fort-worth", 11.6, 1]],
+  "117": [["concentra-7555-northwest-loop-410-san-antonio", 4.5, 1], ["carenow-10538-potranco-rd-san-antonio", 5.6, 1], ["carenow-5755-northwest-loop-410-san-antonio", 7.9, 1], ["concentra-12651-vance-jackson-rd-san-antonio", 13, 1]],
+  "118": [["carenow-2114-boca-chica-blvd-brownsville", 3.5, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 45.4, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 121.7, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 246.2, 1]],
+  "119": [["carenow-2114-boca-chica-blvd-brownsville", 25.3, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 25.3, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 109.2, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 228.6, 1]],
+  "121": [["concentra-4205-franklin-ave-waco", 9.1, 1], ["carenow-1501-sw-wilshire-blvd-burleson", 62.8, 1], ["carenow-1501-u-s-287-frontage-rd-mansfield", 64.8, 1], ["concentra-5520-s-westmoreland-rd-dallas", 71.6, 1]],
+  "122": [["carenow-2901-nolana-ave-mcallen", 0, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 5.2, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 117, 1], ["concentra-7555-northwest-loop-410-san-antonio", 223.1, 1]],
+  "123": [["concentra-2215-s-loop-288-denton", 0, 1], ["carenow-2520-w-university-dr-denton", 2.7, 1], ["carenow-3751-i-35e-denton", 4.6, 1], ["concentra-7214-crawford-rd-argyle", 6.1, 1]],
+  "124": [["carenow-22605-tomball-pkwy-tomball", 3.8, 1], ["carenow-21700-kuykendahl-rd-spring", 5.8, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 13.2, 1], ["concentra-17410-northwest-fwy-houston", 14.9, 1]],
+  "125": [["carenow-3520-nw-centre-dr-fort-worth", 0, 1], ["carenow-454-jim-wright-fwy-fort-worth", 3.9, 1], ["concentra-2500-west-fwy-fort-worth", 8.5, 1], ["concentra-4060-sandshell-dr-fort-worth", 9.9, 1]],
+  "126": [["carenow-2901-nolana-ave-mcallen", 0, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 5.2, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 117, 1], ["concentra-7555-northwest-loop-410-san-antonio", 223.1, 1]],
+  "127": [["carenow-8450-east-fwy-fort-worth", 3.6, 1], ["concentra-511-e-interstate-20-arlington", 3.7, 1], ["carenow-5405-s-cooper-st-arlington", 4.5, 1], ["concentra-2160-e-lamar-blvd-arlington", 5.4, 1]],
+  "128": [["concentra-15810-midway-rd-addison", 0, 1], ["carenow-14856-preston-rd-dallas", 1.3, 1], ["carenow-12801-midway-rd-dallas", 1.9, 1], ["concentra-1345-valwood-pkwy-carrollton", 2.6, 1]],
+  "129": [["carenow-14775-i-35-frontage-rd-schertz", 0, 1], ["concentra-12702-toepperwein-rd-san-antonio", 5.4, 1], ["carenow-17122-bulverde-rd-san-antonio", 7.8, 1], ["concentra-10200-broadway-san-antonio", 8.9, 1]],
+  "131": [["carenow-2114-boca-chica-blvd-brownsville", 13, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 53.2, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 116, 1], ["concentra-1002-abc-ave-ste-600-freeport", 238.9, 1]],
+  "132": [["carenow-2114-boca-chica-blvd-brownsville", 23.6, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 28.8, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 107.7, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 228.4, 1]],
+  "133": [["carenow-2114-boca-chica-blvd-brownsville", 27.5, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 59.6, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 103.8, 1], ["concentra-1002-abc-ave-ste-600-freeport", 224.1, 1]],
+  "134": [["carenow-2114-boca-chica-blvd-brownsville", 3.6, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 43.7, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 124.4, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 248.1, 1]],
+  "135": [["carenow-293-e-trenton-rd-edinburg", 117.6, 1], ["carenow-2901-nolana-ave-mcallen", 118.9, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 125.3, 1], ["concentra-7555-northwest-loop-410-san-antonio", 135.3, 1]],
+  "136": [["carenow-2901-nolana-ave-mcallen", 2.8, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 6.4, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 119.8, 1], ["concentra-7555-northwest-loop-410-san-antonio", 225.6, 1]],
+  "137": [["carenow-920-w-interstate-hwy-2-san-juan", 10.5, 1], ["carenow-293-e-trenton-rd-edinburg", 14.2, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 114.1, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 227.7, 1]],
+  "138": [["carenow-4530-w-university-dr-prosper", 0, 1], ["carenow-781-s-preston-rd-prosper", 0, 1], ["concentra-8756-teel-pkwy-frisco", 6.2, 1], ["concentra-1300-n-central-expy-plano", 15.9, 1]],
+  "139": [["nextlevel-1420-katy-fort-bend-rd-ste-105-katy", 0.8], ["concentra-25805-katy-fwy-ste-600-katy", 1.7], ["carenow-6501-s-fry-rd-ste-1000-katy", 5.1], ["carenow-7107-s-texas-6-houston", 11.2, 1], ["concentra-12345-katy-fwy-houston", 14.1, 1]],
+  "140": [["concentra-25805-katy-fwy-ste-600-katy", 0, 1], ["nextlevel-10625-spring-green-blvd-ste-200-katy", 1.1], ["carenow-6501-s-fry-rd-ste-1000-katy", 2.5], ["carenow-7107-s-texas-6-houston", 11.2, 1], ["concentra-12345-katy-fwy-houston", 14.1, 1]],
+  "141": [["concentra-1300-n-central-expy-plano", 0, 1], ["carenow-3821-spring-creek-pkwy-plano", 3.9, 1], ["carenow-377-w-campbell-rd-richardson", 5.8, 1], ["concentra-1621-s-jupiter-rd-garland", 7.5, 1]],
+  "142": [["concentra-5040-kinsey-dr-tyler", 19.8, 1], ["carenow-610-e-us-hwy-80-forney", 73.1, 1], ["carenow-600-horizon-rd-rockwall", 77.6, 1], ["concentra-4928-samuell-blvd-mesquite", 80.6, 1]],
+  "143": [["carenow-4530-w-university-dr-prosper", 30.2, 1], ["carenow-781-s-preston-rd-prosper", 30.2, 1], ["concentra-8756-teel-pkwy-frisco", 36.3, 1], ["concentra-1300-n-central-expy-plano", 42.7, 1]],
+  "144": [["concentra-5040-kinsey-dr-tyler", 26.6, 1], ["carenow-600-horizon-rd-rockwall", 79, 1], ["carenow-610-e-us-hwy-80-forney", 80.3, 1], ["concentra-4928-samuell-blvd-mesquite", 89, 1]],
+  "145": [["concentra-5040-kinsey-dr-tyler", 15.8, 1], ["carenow-610-e-us-hwy-80-forney", 89.9, 1], ["carenow-600-horizon-rd-rockwall", 92.5, 1], ["concentra-4928-samuell-blvd-mesquite", 98.1, 1]],
+  "146": [["concentra-5040-kinsey-dr-tyler", 34.2, 1], ["carenow-20042-eva-st-montgomery", 101.5, 1], ["carenow-610-e-us-hwy-80-forney", 102.6, 1], ["concentra-4928-samuell-blvd-mesquite", 110.2, 1]],
+  "148": [["concentra-5040-kinsey-dr-tyler", 26.6, 1], ["carenow-610-e-us-hwy-80-forney", 96.2, 1], ["carenow-600-horizon-rd-rockwall", 96.3, 1], ["concentra-4928-samuell-blvd-mesquite", 104.9, 1]],
+  "149": [["concentra-5040-kinsey-dr-tyler", 17.6, 1], ["carenow-610-e-us-hwy-80-forney", 77.9, 1], ["carenow-600-horizon-rd-rockwall", 82, 1], ["concentra-4928-samuell-blvd-mesquite", 85.6, 1]],
+  "150": [["carenow-9323-lyndon-b-johnson-fwy-dallas", 2.7, 1], ["concentra-5601-greenville-ave-dallas", 3.3, 1], ["carenow-4844-greenville-ave-dallas", 3.3, 1], ["concentra-1621-s-jupiter-rd-garland", 5.1, 1]],
+  "151": [["carenow-3821-spring-creek-pkwy-plano", 3.5, 1], ["carenow-1017-w-hebron-pkwy-carrollton", 5.1, 1], ["concentra-15810-midway-rd-addison", 5.6, 1], ["concentra-1300-n-central-expy-plano", 6.4, 1]],
+  "152": [["concentra-5601-greenville-ave-dallas", 2.6, 1], ["carenow-4617-n-central-expy-dallas", 2.6, 1], ["carenow-4844-greenville-ave-dallas", 2.6, 1], ["concentra-1450-empire-central-dr-dallas", 5.6, 1]],
+  "153": [["carenow-5252-w-university-dr-mckinney", 0, 1], ["carenow-6200-eldorado-pkwy-mckinney", 0, 1], ["concentra-1300-n-central-expy-plano", 12.3, 1], ["concentra-8756-teel-pkwy-frisco", 12.5, 1]],
+  "154": [["carenow-2700-horne-st-fort-worth", 2.7, 1], ["carenow-7400-mc-cart-ave-fort-worth", 3.3, 1], ["concentra-2500-west-fwy-fort-worth", 5, 1], ["concentra-2900-denton-hwy-haltom-city", 9.8, 1]],
+  "155": [["carenow-8450-east-fwy-fort-worth", 0, 1], ["concentra-2160-e-lamar-blvd-arlington", 5.6, 1], ["carenow-6401-ne-loop-820-north-richland-hills", 5.9, 1], ["concentra-2900-denton-hwy-haltom-city", 6.2, 1]],
+  "156": [["concentra-1450-empire-central-dr-dallas", 3.7, 1], ["concentra-2920-n-stemmons-fwy-dallas", 3.7, 1], ["carenow-12801-midway-rd-dallas", 4.7, 1], ["carenow-4501-lemmon-ave-dallas", 4.7, 1]],
+  "157": [["carenow-3821-spring-creek-pkwy-plano", 2.1, 1], ["concentra-1300-n-central-expy-plano", 3.6, 1], ["carenow-377-w-campbell-rd-richardson", 4.1, 1], ["concentra-15810-midway-rd-addison", 7.3, 1]],
+  "158": [["carenow-7400-mc-cart-ave-fort-worth", 3.1, 1], ["carenow-5653-mcpherson-blvd-fort-worth", 4.2, 1], ["concentra-2500-west-fwy-fort-worth", 5.5, 1], ["concentra-2900-denton-hwy-haltom-city", 9.6, 1]],
+  "159": [["carenow-1017-w-hebron-pkwy-carrollton", 0, 1], ["concentra-1345-valwood-pkwy-carrollton", 4.5, 1], ["concentra-15810-midway-rd-addison", 5.4, 1], ["carenow-14856-preston-rd-dallas", 6.5, 1]],
+  "160": [["carenow-7400-mc-cart-ave-fort-worth", 2.2, 1], ["carenow-5653-mcpherson-blvd-fort-worth", 3.9, 1], ["concentra-2500-west-fwy-fort-worth", 7.6, 1], ["concentra-2900-denton-hwy-haltom-city", 12.3, 1]],
+  "161": [["carenow-5252-w-university-dr-mckinney", 0, 1], ["carenow-6200-eldorado-pkwy-mckinney", 0, 1], ["concentra-1300-n-central-expy-plano", 12.3, 1], ["concentra-8756-teel-pkwy-frisco", 12.5, 1]],
+  "163": [["carenow-1017-w-hebron-pkwy-carrollton", 4.4, 1], ["concentra-8756-teel-pkwy-frisco", 5.2, 1], ["carenow-301-w-main-st-frisco", 5.2, 1], ["concentra-2403-s-stemmons-fwy-lewisville", 8.1, 1]],
+  "164": [["carenow-2733-fort-worth-hwy-weatherford", 23, 1], ["carenow-5653-mcpherson-blvd-fort-worth", 27.5, 1], ["concentra-2500-west-fwy-fort-worth", 34.7, 1], ["concentra-2900-denton-hwy-haltom-city", 39.5, 1]],
+  "165": [["carenow-5405-s-cooper-st-arlington", 1.5, 1], ["concentra-511-e-interstate-20-arlington", 2.7, 1], ["carenow-8450-east-fwy-fort-worth", 5.5, 1], ["concentra-2160-e-lamar-blvd-arlington", 6.6, 1]],
+  "166": [["nextlevel-9722-gaston-rd-ste-190-katy", 0], ["concentra-25805-katy-fwy-ste-600-katy", 0, 1], ["carenow-6501-s-fry-rd-ste-1000-katy", 2.8], ["carenow-7107-s-texas-6-houston", 11.2, 1], ["concentra-12345-katy-fwy-houston", 14.1, 1]],
+  "167": [["concentra-2403-s-stemmons-fwy-lewisville", 0, 1], ["carenow-1559-w-main-st-lewisville", 0, 1], ["carenow-645-tx-121-coppell", 3.7, 1], ["concentra-1345-valwood-pkwy-carrollton", 7.4, 1]],
+  "168": [["carenow-3751-i-35e-denton", 7, 1], ["concentra-8756-teel-pkwy-frisco", 8, 1], ["carenow-301-w-main-st-frisco", 8, 1], ["concentra-2215-s-loop-288-denton", 9.9, 1]],
+  "169": [["carenow-17122-bulverde-rd-san-antonio", 7.3, 1], ["concentra-12651-vance-jackson-rd-san-antonio", 8.6, 1], ["concentra-10200-broadway-san-antonio", 9.3, 1], ["carenow-5410-broadway-san-antonio", 12.3, 1]],
+  "170": [["carenow-5301-william-d-tate-ave-grapevine", 5.2, 1], ["carenow-779-grapevine-hwy-hurst", 5.4, 1], ["concentra-2160-e-lamar-blvd-arlington", 5.5, 1], ["concentra-2233-e-grauwyler-rd-irving", 7.3, 1]],
+  "171": [["carenow-5755-northwest-loop-410-san-antonio", 0, 1], ["carenow-10538-potranco-rd-san-antonio", 2.4, 1], ["concentra-7555-northwest-loop-410-san-antonio", 4.9, 1], ["concentra-12651-vance-jackson-rd-san-antonio", 7.3, 1]],
+  "172": [["matagorda-regional-medical-center-104-7th-st-bay-city", 2.4], ["concentra-1002-abc-ave-ste-600-freeport", 37, 1], ["carenow-1403-hwy-6-sugar-land", 55.5, 1], ["concentra-10521-corporate-dr-stafford", 56.5, 1], ["carenow-11826-broadway-st-pearland", 59, 1]],
+  "173": [["carenow-2114-boca-chica-blvd-brownsville", 27.5, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 59.6, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 103.8, 1], ["concentra-1002-abc-ave-ste-600-freeport", 224.1, 1]],
+  "174": [["carenow-9101-lakeview-pkwy-rowlett", 0, 1], ["carenow-565-w-interstate-30-garland", 4.4, 1], ["concentra-1621-s-jupiter-rd-garland", 7.6, 1], ["concentra-4928-samuell-blvd-mesquite", 10, 1]],
+  "175": [["carenow-5106-n-president-george-bush-hwy-garland", 3.2, 1], ["carenow-3080-e-farm-to-market-544-wylie", 4.5, 1], ["concentra-1621-s-jupiter-rd-garland", 5.4, 1], ["concentra-1300-n-central-expy-plano", 6.2, 1]],
+  "176": [["nextlevel-8720-hwy-6-ste-400-missouri-city", 0.4], ["concentra-10521-corporate-dr-stafford", 3.9, 1], ["gohealth-8035-hwy-6-ste-170-missouri-city", 4.1], ["carenow-1403-hwy-6-sugar-land", 5.2, 1], ["concentra-6545-southwest-fwy-houston", 8.5, 1], ["carenow-7107-s-texas-6-houston", 10.8, 1]],
+  "177": [["carenow-2901-nolana-ave-mcallen", 0, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 5.2, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 117, 1], ["concentra-7555-northwest-loop-410-san-antonio", 223.1, 1]],
+  "178": [["carenow-8901-n-fwy-fort-worth", 0, 1], ["carenow-104-s-main-st-keller", 3.9, 1], ["concentra-4060-sandshell-dr-fort-worth", 5.6, 1], ["concentra-2900-denton-hwy-haltom-city", 9.7, 1]],
+  "179": [["carenow-5001-183a-cedar-park", 0, 1], ["carenow-10625-w-parmer-ln-austin", 4.4, 1], ["concentra-13831-us-183-hwy-austin", 5.9, 1], ["concentra-9333-research-blvd-austin", 8.1, 1]],
+  "180": [["carenow-9640-montwood-dr-el-paso", 8.9, 1], ["concentra-6320-gtwy-blvd-e-el-paso", 9.4, 1], ["carenow-7845-n-mesa-st-el-paso", 10.8, 1], ["concentra-1610-n-zaragoza-rd-el-paso", 11.4, 1]],
+  "181": [["concentra-6048-marsha-sharp-fwy-w-lubbock", 4.4, 1], ["concentra-160-slaton-rd-lubbock", 10.2, 1], ["carenow-2733-fort-worth-hwy-weatherford", 255.3, 1], ["carenow-454-jim-wright-fwy-fort-worth", 265.8, 1]],
+  "184": [["concentra-6048-marsha-sharp-fwy-w-lubbock", 0, 1], ["concentra-160-slaton-rd-lubbock", 5.9, 1], ["carenow-2733-fort-worth-hwy-weatherford", 251.2, 1], ["carenow-454-jim-wright-fwy-fort-worth", 261.6, 1]],
+  "185": [["concentra-6048-marsha-sharp-fwy-w-lubbock", 0, 1], ["concentra-160-slaton-rd-lubbock", 5.9, 1], ["carenow-2733-fort-worth-hwy-weatherford", 251.2, 1], ["carenow-454-jim-wright-fwy-fort-worth", 261.6, 1]],
+  "186": [["carenow-2540-farm-to-market-2920-spring", 4.3, 1], ["carenow-21700-kuykendahl-rd-spring", 4.9, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 8.3, 1], ["concentra-401-greens-rd-houston", 13.5, 1]],
+  "187": [["carenow-610-e-us-hwy-80-forney", 10.3, 1], ["carenow-600-horizon-rd-rockwall", 11.8, 1], ["concentra-4928-samuell-blvd-mesquite", 18.9, 1], ["concentra-1621-s-jupiter-rd-garland", 25.6, 1]],
+  "188": [["carenow-17122-bulverde-rd-san-antonio", 4.2, 1], ["concentra-10200-broadway-san-antonio", 4.7, 1], ["concentra-12651-vance-jackson-rd-san-antonio", 5.5, 1], ["carenow-5410-broadway-san-antonio", 7.3, 1]],
+  "189": [["concentra-1414-s-loop-w-houston", 2, 1], ["nextlevel-4936-beechnut-houston", 2.4], ["afc-5568-weslayan-st-houston", 2.6], ["carenow-2707-milam-st-houston", 4.4, 1], ["concentra-6545-southwest-fwy-houston", 4.6, 1], ["carenow-1917-w-gray-st-houston", 4.7, 1]],
+  "190": [["concentra-1300-n-central-expy-plano", 0, 1], ["carenow-3821-spring-creek-pkwy-plano", 3.9, 1], ["carenow-377-w-campbell-rd-richardson", 5.8, 1], ["concentra-1621-s-jupiter-rd-garland", 7.5, 1]],
+  "191": [["carenow-345-n-hwy-67-cedar-hill", 0, 1], ["concentra-5520-s-westmoreland-rd-dallas", 6.3, 1], ["carenow-39769-i-20-dallas", 6.3, 1], ["concentra-511-e-interstate-20-arlington", 11.2, 1]],
+  "192": [["carenow-11845-grand-pkwy-new-caney", 4.8, 1], ["carenow-300-northpark-dr-kingwood", 6.9, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 11, 1], ["concentra-401-greens-rd-houston", 15.3, 1]],
+  "193": [["carenow-4810-gattis-school-rd-hutto", 44.8, 1], ["carenow-12415-n-interstate-35-frontage-rd-austin", 46.6, 1], ["concentra-10001-s-i-35-frontage-rd-austin", 48.6, 1], ["concentra-2171-woodward-st-austin", 48.6, 1]],
+  "194": [["concentra-12651-vance-jackson-rd-san-antonio", 8.4, 1], ["carenow-17122-bulverde-rd-san-antonio", 13.2, 1], ["carenow-10538-potranco-rd-san-antonio", 13.4, 1], ["concentra-10200-broadway-san-antonio", 13.9, 1]],
+  "195": [["carenow-2733-fort-worth-hwy-weatherford", 5.9, 1], ["carenow-454-jim-wright-fwy-fort-worth", 17.1, 1], ["concentra-2500-west-fwy-fort-worth", 26.8, 1], ["concentra-4060-sandshell-dr-fort-worth", 30.1, 1]],
+  "197": [["concentra-12651-vance-jackson-rd-san-antonio", 3.3, 1], ["carenow-5410-broadway-san-antonio", 4.4, 1], ["concentra-10200-broadway-san-antonio", 4.7, 1], ["carenow-17122-bulverde-rd-san-antonio", 6.5, 1]],
+  "198": [["carenow-920-w-interstate-hwy-2-san-juan", 2.8, 1], ["carenow-2901-nolana-ave-mcallen", 4, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 118.1, 1], ["concentra-7555-northwest-loop-410-san-antonio", 226.1, 1]],
+  "199": [["carenow-5233-fairmont-pkwy-ste-1-pasadena", 1.2], ["nextcare-6825-spencer-hwy-pasadena", 2.9], ["concentra-125-e-8th-st-deer-park", 4.6, 1], ["carenow-9055-spencer-hwy-deer-park", 4.6, 1], ["concentra-8508-gulf-fwy-ste-f-houston", 4.7, 1]],
+  "200": [["carenow-7072-farm-to-market-1960-rd-e-humble", 6.6, 1], ["carenow-300-northpark-dr-kingwood", 7, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 7.6, 1], ["concentra-401-greens-rd-houston", 8.5, 1]],
+  "201": [["afc-8850-spencer-hwy-ste-105-la-porte", 2], ["concentra-1309-west-fairmont-pkwy-ste-x-la-porte", 2.5], ["concentra-125-e-8th-st-deer-park", 4.3, 1], ["carenow-9055-spencer-hwy-deer-park", 4.3, 1], ["carenow-5233-fairmont-pkwy-ste-1-pasadena", 6.2, 1]],
+  "202": [["carenow-2520-i-20-frontage-rd-grand-prairie", 0, 1], ["concentra-511-e-interstate-20-arlington", 4.1, 1], ["carenow-345-n-hwy-67-cedar-hill", 7.1, 1], ["concentra-2160-e-lamar-blvd-arlington", 8.7, 1]],
+  "203": [["carenow-600-horizon-rd-rockwall", 5.9, 1], ["carenow-3080-e-farm-to-market-544-wylie", 10.5, 1], ["concentra-1621-s-jupiter-rd-garland", 18.4, 1], ["concentra-1300-n-central-expy-plano", 18.7, 1]],
+  "204": [["carenow-779-grapevine-hwy-hurst", 2.4, 1], ["carenow-6401-ne-loop-820-north-richland-hills", 3.2, 1], ["concentra-2900-denton-hwy-haltom-city", 5.6, 1], ["concentra-2160-e-lamar-blvd-arlington", 6.1, 1]],
+  "205": [["carenow-9640-montwood-dr-el-paso", 0, 1], ["concentra-1610-n-zaragoza-rd-el-paso", 3.6, 1], ["concentra-6320-gtwy-blvd-e-el-paso", 4.2, 1], ["carenow-7845-n-mesa-st-el-paso", 14.7, 1]],
+  "206": [["concentra-6320-gtwy-blvd-e-el-paso", 3.7, 1], ["carenow-9640-montwood-dr-el-paso", 7.8, 1], ["carenow-7845-n-mesa-st-el-paso", 8.4, 1], ["concentra-1610-n-zaragoza-rd-el-paso", 11.3, 1]],
+  "207": [["concentra-12651-vance-jackson-rd-san-antonio", 25.6, 1], ["carenow-17122-bulverde-rd-san-antonio", 27, 1], ["concentra-10200-broadway-san-antonio", 29.2, 1], ["carenow-10538-potranco-rd-san-antonio", 30, 1]],
+  "208": [["concentra-1610-n-zaragoza-rd-el-paso", 11.9, 1], ["carenow-9640-montwood-dr-el-paso", 15.4, 1], ["concentra-6320-gtwy-blvd-e-el-paso", 18.5, 1], ["carenow-7845-n-mesa-st-el-paso", 30, 1]],
+  "209": [["carenow-104-s-main-st-keller", 0, 1], ["carenow-720-s-main-st-keller", 0, 1], ["concentra-4060-sandshell-dr-fort-worth", 4.8, 1], ["concentra-2900-denton-hwy-haltom-city", 8.3, 1]],
+  "210": [["concentra-5040-kinsey-dr-tyler", 55.7, 1], ["carenow-1150-w-dallas-st-conroe", 109.1, 1], ["carenow-20042-eva-st-montgomery", 109.5, 1], ["concentra-124-b-farm-to-market-1960-rd-e-houston", 126.5, 1]],
+  "211": [["carenow-779-grapevine-hwy-hurst", 2.5, 1], ["carenow-6401-ne-loop-820-north-richland-hills", 4.7, 1], ["concentra-2160-e-lamar-blvd-arlington", 5, 1], ["concentra-2900-denton-hwy-haltom-city", 7.4, 1]],
+  "212": [["carenow-3821-spring-creek-pkwy-plano", 3.1, 1], ["concentra-8756-teel-pkwy-frisco", 5.7, 1], ["carenow-301-w-main-st-frisco", 5.7, 1], ["concentra-1300-n-central-expy-plano", 7, 1]],
+  "213": [["carenow-2851-w-lyndon-b-johnson-fwy-irving", 0, 1], ["carenow-7400-n-macarthur-blvd-irving", 0, 1], ["concentra-5910-n-macarthur-blvd-irving", 4, 1], ["concentra-1345-valwood-pkwy-carrollton", 5.3, 1]],
+  "214": [["carenow-600-horizon-rd-rockwall", 23.8, 1], ["carenow-3080-e-farm-to-market-544-wylie", 26.8, 1], ["concentra-1300-n-central-expy-plano", 34.3, 1], ["concentra-1621-s-jupiter-rd-garland", 36.2, 1]],
+  "215": [["carenow-293-e-trenton-rd-edinburg", 132, 1], ["concentra-7555-northwest-loop-410-san-antonio", 133.1, 1], ["carenow-2901-nolana-ave-mcallen", 133.2, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 137.7, 1]],
+  "216": [["concentra-6048-marsha-sharp-fwy-w-lubbock", 5.3, 1], ["concentra-160-slaton-rd-lubbock", 7.5, 1], ["carenow-2733-fort-worth-hwy-weatherford", 252.4, 1], ["carenow-454-jim-wright-fwy-fort-worth", 262.7, 1]],
+  "217": [["carenow-2114-boca-chica-blvd-brownsville", 0, 1], ["carenow-920-w-interstate-hwy-2-san-juan", 47.2, 1], ["concentra-4025-s-padre-island-dr-corpus-christi", 125.1, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 249.6, 1]],
+  "218": [["carenow-2520-i-20-frontage-rd-grand-prairie", 0, 1], ["concentra-511-e-interstate-20-arlington", 4.1, 1], ["carenow-345-n-hwy-67-cedar-hill", 7.1, 1], ["concentra-2160-e-lamar-blvd-arlington", 8.7, 1]],
+  "219": [["carenow-11826-broadway-st-pearland", 2.1], ["nextlevel-8325-broadway-st-ste-220-pearland", 2.8], ["carenow-2907-east-broadway-st-pearland", 3.3, 1], ["concentra-8508-gulf-fwy-ste-f-houston", 10.8, 1], ["concentra-1414-s-loop-w-houston", 11.1, 1]],
+  "220": [["carenow-2733-fort-worth-hwy-weatherford", 47.9, 1], ["carenow-5653-mcpherson-blvd-fort-worth", 57.2, 1], ["concentra-2500-west-fwy-fort-worth", 64, 1], ["concentra-2900-denton-hwy-haltom-city", 68.7, 1]],
+  "221": [["carenow-2800-s-i-35-frontage-rd-round-rock", 5.4, 1], ["concentra-117-louis-henna-blvd-round-rock", 5.5, 1], ["carenow-12415-n-interstate-35-frontage-rd-austin", 6.2, 1], ["concentra-9333-research-blvd-austin", 7.8, 1]],
+  "222": [["concentra-1000-n-post-oak-rd-houston", 2.8, 1], ["concentra-9200-hempstead-hwy-ste-137-houston", 4.3, 1], ["carenow-102-w-11th-st-houston", 4.3, 1], ["carenow-1917-w-gray-st-houston", 6.9, 1]],
+  "223": [["concentra-4205-franklin-ave-waco", 2.4, 1], ["carenow-1205-s-i-35-frontage-rd-georgetown", 68.3, 1], ["carenow-1205-south-i-35-georgetown", 70.1, 1], ["concentra-117-louis-henna-blvd-round-rock", 75.7, 1]],
+  "224": [["carenow-3906-n-lamar-blvd-austin", 2.7, 1], ["carenow-5033-w-us-hwy-290-service-rd-austin", 3.2, 1], ["concentra-3801-s-lamar-blvd-austin", 3.3, 1], ["concentra-2000-w-anderson-ln-austin", 4.2, 1]],
+  "225": [["carenow-3080-e-farm-to-market-544-wylie", 5.9, 1], ["carenow-600-horizon-rd-rockwall", 9, 1], ["concentra-1300-n-central-expy-plano", 13.9, 1], ["concentra-1621-s-jupiter-rd-garland", 15.4, 1]],
+  "226": [["carenow-3751-i-35e-denton", 4.5, 1], ["concentra-7214-crawford-rd-argyle", 5.6, 1], ["concentra-2403-s-stemmons-fwy-lewisville", 6, 1], ["carenow-1559-w-main-st-lewisville", 6, 1]],
+  "228": [["carenow-5106-n-president-george-bush-hwy-garland", 3.2, 1], ["carenow-3080-e-farm-to-market-544-wylie", 4.5, 1], ["concentra-1621-s-jupiter-rd-garland", 5.4, 1], ["concentra-1300-n-central-expy-plano", 6.2, 1]],
+  "229": [["carenow-1567-main-st-buda", 6.7, 1], ["concentra-10001-s-i-35-frontage-rd-austin", 10.1, 1], ["carenow-301-n-guadalupe-st-san-marcos", 10.5, 1], ["concentra-2171-woodward-st-austin", 14.2, 1]],
+  "235": [["carenow-144-s-brook-dr-leander", 0, 1], ["carenow-5001-183a-cedar-park", 5.8, 1], ["concentra-13831-us-183-hwy-austin", 11.7, 1], ["concentra-117-louis-henna-blvd-round-rock", 12.2, 1]],
+  "241": [["carenow-5252-w-university-dr-mckinney", 0, 1], ["carenow-6200-eldorado-pkwy-mckinney", 0, 1], ["concentra-1300-n-central-expy-plano", 12.3, 1], ["concentra-8756-teel-pkwy-frisco", 12.5, 1]],
+  "247": [["carenow-5252-w-university-dr-mckinney", 0, 1], ["carenow-6200-eldorado-pkwy-mckinney", 0, 1], ["concentra-1300-n-central-expy-plano", 12.3, 1], ["concentra-8756-teel-pkwy-frisco", 12.5, 1]],
+  "262": [["concentra-2500-west-fwy-fort-worth", 3.1, 1], ["carenow-2700-horne-st-fort-worth", 4.3, 1], ["concentra-2900-denton-hwy-haltom-city", 5, 1], ["carenow-3520-nw-centre-dr-fort-worth", 5.9, 1]],
+  "281": [["carenow-14775-i-35-frontage-rd-schertz", 19, 1], ["carenow-301-n-guadalupe-st-san-marcos", 21.7, 1], ["concentra-12702-toepperwein-rd-san-antonio", 24.1, 1], ["concentra-3453-i-35-frontage-rd-san-antonio", 24.2, 1]],
+  "296": [["concentra-2171-woodward-st-austin", 0, 1], ["carenow-1920-e-riverside-dr-austin", 3.4, 1], ["concentra-3801-s-lamar-blvd-austin", 4, 1], ["carenow-208-w-ben-white-blvd-austin", 4, 1]],
+  "347": [["carenow-345-n-hwy-67-cedar-hill", 25.8, 1], ["concentra-5520-s-westmoreland-rd-dallas", 27, 1], ["carenow-39769-i-20-dallas", 27, 1], ["concentra-4928-samuell-blvd-mesquite", 30.1, 1]],
 };
 
 // Any location of these providers is approved, even if it is not listed above.
@@ -471,16 +1039,48 @@ const BRAND_OPTIONS = [
   { value: 'brand:CareNow', name: 'CareNow' }
 ];
 
+// ------------------------------------------------------------
+// Recommendation settings (change here if the rules change)
+// ------------------------------------------------------------
+const TEST_BUFFER_MIN = 60;   // a site is only "recommended" if it is still open this many minutes after the manager would arrive
+const FAR_MILES = 40;         // warn when the closest listed site is farther than this
+const MIN_PER_MILE = 2.5;     // rough driving pace used to estimate arrival time (about 24 mph)
+const STORE_TZ_DEFAULT = 'America/Chicago';
+
 function siteById(id) { return APPROVED_SITES.find(s => s.id === id) || null; }
 function brandByValue(v) { return BRAND_OPTIONS.find(b => b.value === v) || null; }
 
+// ------------------------------------------------------------
+// Stores
+// ------------------------------------------------------------
+function storeByNum(n) {
+  if (n === undefined || n === null || n === '') return null;
+  const k = String(n).replace(/\D/g, '').padStart(3, '0');
+  return STORES.find(s => s.n === k) || null;
+}
+function storeLabel(st) { return st.n + ' — ' + st.name + ', ' + st.city; }
+function storeFull(st) { return 'Store ' + st.n + ' - ' + st.name + ' (' + st.city + ')'; }
+function storeAddress(st) { return st.addr + ', ' + st.city + ', TX ' + st.zip; }
+// Accepts "6", "006", "Store 006", the full list label, or a unique part of a store name.
+function resolveStore(text) {
+  const t = String(text || '').trim();
+  if (!t) return null;
+  const m = t.match(/^(?:store\s*#?\s*)?(\d{1,3})(?!\d)/i);
+  if (m) return storeByNum(m[1]);
+  const q = t.toLowerCase();
+  const exact = STORES.filter(s => s.name.toLowerCase() === q || storeLabel(s).toLowerCase() === q);
+  if (exact.length === 1) return exact[0];
+  const part = STORES.filter(s => s.name.toLowerCase().includes(q));
+  return part.length === 1 ? part[0] : null;
+}
+function storeDatalistHTML() {
+  return '<datalist id="storeList">' + STORES.map(s => '<option value="' + esc(storeLabel(s)) + '"></option>').join('') + '</datalist>';
+}
+
 // Resolved testing site for the record.
-// kind: 'approved' (on the list) | 'brand' (any Concentra / CareNow location) | 'other' (not on the list, needs DM/HR approval) | 'manual' (list empty)
+// kind: 'approved' (on the list) | 'brand' (any Concentra / CareNow location) | 'other' (not on the list, needs DM/HR authorization)
 function siteInfo() {
   const d = S.data;
-  if (!APPROVED_SITES.length) {
-    return d.siteOtherName ? { kind: 'manual', name: d.siteOtherName, address: '', phone: '', approver: '' } : null;
-  }
   if (d.siteChoice === 'other') {
     return d.siteOtherName ? { kind: 'other', name: d.siteOtherName, address: '', phone: d.siteOtherPhone || '', approver: d.siteOtherApprover } : null;
   }
@@ -496,10 +1096,126 @@ function siteText(i) {
   else if (i.kind === 'other') t += ' — not on the approved list; authorized by ' + i.approver;
   return t;
 }
+
+// ------------------------------------------------------------
+// Hours: open / closed right now, and when a site opens next
+// Hours text looks like "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun Closed". Days that are not mentioned are treated as closed.
+// ------------------------------------------------------------
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+function timeToMin(t) {
+  t = String(t).trim().toLowerCase();
+  if (t === 'midnight' || t === '12am') return 1440;
+  if (t === 'noon') return 720;
+  const m = t.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/);
+  if (!m) return null;
+  let h = Number(m[1]) % 12;
+  if (m[3] === 'pm') h += 12;
+  return h * 60 + Number(m[2] || 0);
+}
+const _hoursCache = {};
+function parseHours(str) {
+  const s = String(str || '').trim();
+  if (!s) return null;
+  if (_hoursCache[s] !== undefined) return _hoursCache[s];
+  let out = null;
+  try {
+    const res = [null, null, null, null, null, null, null];
+    let seen = false;
+    s.replace(/[–—]/g, '-').split(/\s*[;,]\s*(?=(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))/).forEach(part => {
+      const m = part.trim().match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:\s*-\s*(Sun|Mon|Tue|Wed|Thu|Fri|Sat))?\s+(.*)$/);
+      if (!m) throw new Error('bad hours');
+      const a = DAY_NAMES.indexOf(m[1]), b = DAY_NAMES.indexOf(m[2] || m[1]);
+      let win = null;
+      if (!/^closed$/i.test(m[3].trim())) {
+        const t = m[3].split(/\s*-\s*/);
+        const o = timeToMin(t[0]), c = timeToMin(t[1]);
+        if (o === null || c === null) throw new Error('bad time');
+        win = c > o ? [o, c] : null;
+      }
+      for (let k = a; ; k = (k + 1) % 7) { res[k] = win; if (k === b) break; }
+      seen = true;
+    });
+    out = seen ? res : null;
+  } catch (e) { out = null; }
+  _hoursCache[s] = out;
+  return out;
+}
+function zonedParts(ms, tz) {
+  let parts;
+  try {
+    parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(new Date(ms));
+  } catch (e) {
+    const d = new Date(ms);
+    return { dow: d.getDay(), min: d.getHours() * 60 + d.getMinutes() };
+  }
+  const g = t => (parts.find(p => p.type === t) || {}).value;
+  return { dow: DAY_NAMES.indexOf(g('weekday')), min: (Number(g('hour')) % 24) * 60 + Number(g('minute')) };
+}
+function fmtMin(m) {
+  if (m >= 1440) return 'midnight';
+  const h = Math.floor(m / 60), mm = m % 60;
+  return ((h % 12) || 12) + ':' + String(mm).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM');
+}
+function nextOpen(h, now) {
+  for (let off = 0; off <= 7; off++) {
+    const d = (now.dow + off) % 7, w = h[d];
+    if (!w) continue;
+    if (off === 0 && w[0] <= now.min) continue;
+    return { off, dow: d, min: w[0] };
+  }
+  return null;
+}
+function nextOpenText(n) {
+  if (!n) return 'no opening found in the listed hours';
+  return (n.off === 0 ? 'today' : n.off === 1 ? 'tomorrow' : DAY_LONG[n.dow]) + ' at ' + fmtMin(n.min);
+}
+function travelMin(miles, est) { return Math.max(5, Math.round(miles * (est ? 1.3 : 1) * MIN_PER_MILE)); }
+// Status of a site right now, and at the time the manager would arrive (awayMin minutes from now).
+function siteStatus(site, tz, awayMin) {
+  const h = parseHours(site.hours);
+  if (!h) return { k: 'unknown' };
+  const t0 = Date.now();
+  const n = zonedParts(t0, tz), a = zonedParts(t0 + (awayMin || 0) * 60000, tz);
+  const wn = h[n.dow], wa = h[a.dow];
+  const openNow = !!wn && n.min >= wn[0] && n.min < wn[1];
+  const openAtArrival = !!wa && a.min >= wa[0] && a.min < wa[1];
+  return {
+    k: openNow ? 'open' : 'closed', openNow, openAtArrival,
+    closeMin: openNow ? wn[1] : null, minsLeftNow: openNow ? wn[1] - n.min : 0,
+    leftAtArrival: openAtArrival ? wa[1] - a.min : 0,
+    next: openNow ? null : nextOpen(h, n)
+  };
+}
+function statusInfo(st) {
+  if (st.k === 'unknown') return { cls: 'st-unk', text: 'Hours not listed — call to confirm they are open' };
+  if (st.k === 'closed') return { cls: 'st-closed', text: 'Closed now · opens ' + nextOpenText(st.next) };
+  const good = st.openAtArrival && st.leftAtArrival >= TEST_BUFFER_MIN;
+  if (good) return { cls: 'st-open', text: 'Open now · closes ' + fmtMin(st.closeMin) };
+  return { cls: 'st-soon', text: 'Open now · closes ' + fmtMin(st.closeMin) + ' — may be closed, or too close to closing, by the time you arrive' };
+}
+
+// ------------------------------------------------------------
+// Map links (open in a new tab; Maps shows live hours, phone and drive time)
+// ------------------------------------------------------------
+function mapsDir(x) { return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(x.name + ' ' + x.address); }
+function mapsFind(x) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(x.name + ' ' + x.address); }
+function mapsNear(brand, where) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(brand + ' near ' + where); }
+const LNK = 'target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"';
+
+// ------------------------------------------------------------
+// Site selection
+// ------------------------------------------------------------
 function captureSiteFields() {
   const g = id => document.getElementById(id);
-  if (g('f-siteStore')) { S.data.siteStore = g('f-siteStore').value; S.data.siteStoreTouched = true; }
-  if (g('f-siteStoreOther')) S.data.siteStoreOther = g('f-siteStoreOther').value.trim();
+  if (g('f-siteStore')) {
+    const raw = g('f-siteStore').value.trim();
+    const st = resolveStore(raw);
+    if (st) { S.data.siteStore = st.n; S.data.siteStoreOther = ''; }
+    else if (raw) { S.data.siteStore = 'other'; S.data.siteStoreOther = raw; }
+    else { S.data.siteStore = ''; S.data.siteStoreOther = ''; }
+    S.data.siteStoreTouched = true;
+  }
   if (g('f-site')) S.data.siteChoice = g('f-site').value;
   if (g('f-siteOtherName')) S.data.siteOtherName = g('f-siteOtherName').value.trim();
   if (g('f-siteOtherPhone')) S.data.siteOtherPhone = g('f-siteOtherPhone').value.trim();
@@ -519,19 +1235,8 @@ function pickSite(id) {
   if (S.data.siteChoice !== id) { S.data.siteChoice = id; S.data.siteOtherName = ''; S.data.siteOtherPhone = ''; S.data.siteOtherApprover = ''; }
   render();
 }
-// Pre-selects the store from the setup screen ("Store 12", "12", ...) when it is on the list.
-function guessStore() {
-  const m = String(S.data.location || '').match(/\b(\d{1,3})\b/);
-  const k = m ? String(Number(m[1])) : '';
-  return k && STORE_NEAREST[k] ? k : '';
-}
 function siteValid() {
   const d = S.data;
-  if (!APPROVED_SITES.length) {
-    if (!d.siteOtherName) { alert('Enter the testing facility name and address before proceeding.'); return false; }
-    return true;
-  }
-  if (d.siteStore === 'other' && !d.siteStoreOther) { alert('Enter your store number or name.'); return false; }
   if (d.siteChoice === 'other') {
     if (!d.siteOtherName) { alert('Enter the facility name and address.'); return false; }
     if (!d.siteOtherApprover) { alert('A location that is not on the list must be authorized by your DM or HR before you transport. Enter who authorized it.'); return false; }
@@ -545,49 +1250,88 @@ function siteValid() {
   if (!siteById(d.siteChoice)) { alert('Select the testing facility before proceeding.'); return false; }
   return true;
 }
+// Earliest listed opening on a day after today for the chosen site (used on the closed-facility step).
+function ahNextOpening() {
+  const site = siteById(S.data.siteChoice);
+  const h = site ? parseHours(site.hours) : null;
+  if (!h) return null;
+  const store = currentStore();
+  const n = zonedParts(Date.now(), store ? store.tz : STORE_TZ_DEFAULT);
+  const nx = nextOpen(h, { dow: n.dow, min: 1440 });   // skips the rest of today
+  return nx ? DAY_LONG[nx.dow] + ' at ' + fmtMin(nx.min) : null;
+}
+function ahPlaceholder() { const t = ahNextOpening(); return t ? 'e.g. ' + t : 'e.g. Tuesday at 8:00 AM'; }
+function ahHint() { const t = ahNextOpening(); return t ? '<p style="margin-top:6px;font-size:12.5px;color:var(--mid);">Earliest next-day opening per the listed hours: <strong>' + esc(t) + '</strong>. Call to book the appointment.</p>' : ''; }
+function currentStore() { const k = S.data.siteStore; return (k && k !== 'other') ? storeByNum(k) : null; }
+
 function siteSelectorHTML(label) {
   const d = S.data;
-  if (!APPROVED_SITES.length) {
-    return `<div class="field"><label>${esc(label)} — name and address</label><input type="text" id="f-siteOtherName" value="${esc(d.siteOtherName)}" placeholder="Facility name and address"></div>`;
+  // Pre-select the store from the setup screen the first time through.
+  if (!d.siteStore && !d.siteStoreTouched) {
+    const st = storeByNum(d.storeNum) || resolveStore(d.location);
+    if (st) d.siteStore = st.n;
+    else if (d.location) { d.siteStore = 'other'; d.siteStoreOther = d.location; }   // typed on setup but not on the list
   }
+  const store = currentStore();
+  const tz = store ? store.tz : STORE_TZ_DEFAULT;
   const sel = o => (d.siteChoice === o ? 'selected' : '');
-  const opt = (s, suffix) => `<option value="${esc(s.id)}" ${sel(s.id)}>${esc(s.name)} — ${esc(s.address)}${suffix || ''}</option>`;
+  const storeVal = store ? storeLabel(store) : (d.siteStore === 'other' ? d.siteStoreOther : '');
 
-  // Store picker: the store's closest sites are shown first, as tappable cards.
-  if (!d.siteStore && !d.siteStoreTouched) d.siteStore = guessStore();
-  const stores = Object.keys(STORE_NEAREST).sort((a, b) => Number(a) - Number(b));
-  let storeHTML = '', cardsHTML = '', nearestIds = [];
-  if (stores.length) {
-    storeHTML = `<div class="field"><label>Your store (shows the closest sites first)</label>
-      <select id="f-siteStore" onchange="onSiteChange()">
-        <option value="">Select your store</option>
-        ${stores.map(st => `<option value="${esc(st)}" ${d.siteStore === st ? 'selected' : ''}>Store ${esc(st)}</option>`).join('')}
-        <option value="other" ${d.siteStore === 'other' ? 'selected' : ''}>My store is not on this list</option>
-      </select></div>`;
-    if (d.siteStore === 'other') storeHTML += `<div class="field"><label>Your store number or name</label><input type="text" id="f-siteStoreOther" value="${esc(d.siteStoreOther)}" placeholder="e.g. Store 262">
-      <p style="margin-top:6px;font-size:12.5px;color:var(--mid);">We don't have closest-site distances for this store yet. Pick from the full list below, grouped by city, or use a location your DM or HR has authorized.</p></div>`;
-    const near = (STORE_NEAREST[d.siteStore] || []).filter(n => siteById(n[0])).sort((a, b) => a[1] - b[1]);
-    nearestIds = near.map(n => n[0]);
-    if (near.length) cardsHTML = `<div class="near-head">Closest to Store ${esc(d.siteStore)} — tap to select</div>` + near.map(n => {
-      const x = siteById(n[0]);
+  let html = `<div class="field"><label>Your store (shows the closest sites first)</label>
+      <input type="text" id="f-siteStore" list="storeList" value="${esc(storeVal)}" placeholder="Type a store number or name" onchange="onSiteChange()" autocomplete="off">
+      ${storeDatalistHTML()}</div>`;
+
+  // Closest sites to this store, with open / closed status and a recommendation.
+  const near = store ? (STORE_NEAREST[String(Number(store.n))] || []).filter(n => siteById(n[0])).sort((a, b) => a[1] - b[1]) : [];
+  const evals = near.map(n => {
+    const x = siteById(n[0]), est = !!n[2];
+    return { x, miles: n[1], est, st: siteStatus(x, tz, travelMin(n[1], est)) };
+  });
+  const recIdx = evals.findIndex(e => e.st.k === 'open' && e.st.openAtArrival && e.st.leftAtArrival >= TEST_BUFFER_MIN);
+  const miText = e => (e.est ? (e.miles < 2 ? 'under 2 mi (est.)' : '≈ ' + Math.round(e.miles) + ' mi') : e.miles + ' mi');
+
+  if (store && evals.length) {
+    if (recIdx >= 0) {
+      const r = evals[recIdx];
+      html += `<div class="rec-banner"><strong>Recommended right now:</strong> ${esc(r.x.name)}, ${esc(r.x.address)} (${esc(miText(r))}). ${esc(statusInfo(r.st).text)}. Call before you go.</div>`;
+    } else {
+      const n0 = evals.find(e => e.st.k === 'closed');
+      html += `<div class="gate"><span>&#9888;</span><span><strong>No listed site near this store is open long enough right now.</strong> Use <em>No — Facility Is Closed</em> below to schedule the test for the next day and arrange a safe ride home.${n0 ? ' Nearest site opens ' + esc(nextOpenText(n0.st.next)) + '.' : ''} You can also search Maps for a site that is open now.</span></div>`;
+    }
+    if (evals[0].miles > FAR_MILES) {
+      html += `<div class="gate"><span>&#9888;</span><span><strong>The closest listed Concentra or CareNow is about ${Math.round(evals[0].miles)} miles away.</strong> Search Maps for a closer clinic, or ask your DM or HR for a local provider.</span></div>`;
+    }
+    html += `<div class="near-head">Closest to Store ${esc(store.n)} — tap to select</div>` + evals.map((e, i) => {
+      const x = e.x, si = statusInfo(e.st);
       return `<div class="site-card ${d.siteChoice === x.id ? 'on' : ''}" role="button" tabindex="0" onclick="pickSite('${esc(x.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();pickSite('${esc(x.id)}')}">
-        <div class="sc-top"><strong>${esc(x.name)}</strong><span class="sc-mi">${n[1]} mi</span></div>
+        <div class="sc-top"><span><strong>${esc(x.name)}</strong>${i === recIdx ? ' <span class="badge-rec">Recommended</span>' : ''}</span><span class="sc-mi">${esc(miText(e))}</span></div>
         <div>${esc(x.address)}</div>
-        <div class="sc-sub">${esc(x.hours || '')}${x.phone ? ' · ' + esc(x.phone) : ''}</div></div>`;
+        <div class="sc-sub">${x.hours ? esc(x.hours) : 'Hours not listed'}${x.phone ? ' · ' + esc(x.phone) : ''}</div>
+        <div class="st ${si.cls}">${esc(si.text)}</div>
+        <div class="sc-links"><a href="${esc(mapsDir(x))}" ${LNK}>Directions</a> · <a href="${esc(mapsFind(x))}" ${LNK}>Live hours &amp; phone (Maps)</a>${x.src === 'listing' ? ' · <span class="sc-note">From provider listing — confirm by phone</span>' : ''}</div>
+      </div>`;
     }).join('');
+  } else if (store) {
+    html += `<div class="gate"><span>&#9888;</span><span><strong>No sites are listed for this store yet.</strong> Use the Maps search below, pick from the full list, or use a location your DM or HR has authorized.</span></div>`;
+  } else if (d.siteStore === 'other') {
+    html += `<div class="gate"><span>&#9888;</span><span><strong>That store isn't on the list.</strong> Pick any site from the full list below, search Maps near the store, or use a location your DM or HR has authorized.</span></div>`;
   }
+  // Live search, always available.
+  const where = store ? storeAddress(store) : (d.siteStore === 'other' && d.siteStoreOther ? d.siteStoreOther : (d.location || ''));
+  if (where) html += `<p class="near-links">Search Maps live near ${store ? 'this store' : 'there'}: <a href="${esc(mapsNear('Concentra', where))}" ${LNK}>Concentra</a> · <a href="${esc(mapsNear('CareNow', where))}" ${LNK}>CareNow</a> · <a href="${esc(mapsNear('urgent care occupational health', where))}" ${LNK}>Other clinics</a>. Based on listed hours; holiday hours may differ, so always call first.</p>`;
 
+  // Full list.
   const groups = {};
   APPROVED_SITES.forEach(x => { (groups[x.area || ''] = groups[x.area || ''] || []).push(x); });
   const byName = (a, b) => (a.name + a.address).localeCompare(b.name + b.address);
+  const opt = x => `<option value="${esc(x.id)}" ${sel(x.id)}>${esc(x.name)} — ${esc(x.address)}</option>`;
   const body = Object.keys(groups).sort().map(a => a
-    ? `<optgroup label="${esc(a)}">${groups[a].sort(byName).map(x => opt(x)).join('')}</optgroup>`
-    : groups[a].sort(byName).map(x => opt(x)).join('')).join('');
+    ? `<optgroup label="${esc(a)}">${groups[a].sort(byName).map(opt).join('')}</optgroup>`
+    : groups[a].sort(byName).map(opt).join('')).join('');
   const brandGroup = BRAND_OPTIONS.length
     ? `<optgroup label="Any location of these providers">${BRAND_OPTIONS.map(b => `<option value="${esc(b.value)}" ${sel(b.value)}>Any other ${esc(b.name)} location — enter address</option>`).join('')}</optgroup>`
     : '';
-
-  let html = storeHTML + cardsHTML + `<div class="field"><label>${nearestIds.length ? 'Or choose any other site' : esc(label)}</label>
+  html += `<div class="field"><label>${evals.length ? 'Or choose any other site' : esc(label)}</label>
       <select id="f-site" onchange="onSiteChange()">
         <option value="">Select a testing site…</option>${brandGroup}${body}
         <option value="other" ${sel('other')}>Other — authorized location that is not on this list</option>
@@ -595,7 +1339,14 @@ function siteSelectorHTML(label) {
 
   const site = siteById(d.siteChoice);
   const brand = brandByValue(d.siteChoice);
-  if (site) html += `<div class="site-detail"><strong>${esc(site.name)}</strong><br>${esc(site.address)}${site.hours ? '<br>Hours: ' + esc(site.hours) : ''}${site.phone ? '<br>Call to confirm they are open and can receive the employee: <strong>' + esc(site.phone) + '</strong>' : ''}</div>`;
+  if (site) {
+    const near1 = near.find(n => n[0] === site.id);
+    const si = statusInfo(siteStatus(site, tz, near1 ? travelMin(near1[1], !!near1[2]) : 15));
+    html += `<div class="site-detail"><strong>${esc(site.name)}</strong><br>${esc(site.address)}${site.hours ? '<br>Hours: ' + esc(site.hours) : ''}
+      <br><span class="st ${si.cls}">${esc(si.text)}</span>
+      ${site.phone ? '<br>Call to confirm they are open and can receive the employee: <strong>' + esc(site.phone) + '</strong>' : '<br>No phone number on file — open Maps below for the number and live hours.'}
+      <br><a href="${esc(mapsDir(site))}" ${LNK}>Directions</a> · <a href="${esc(mapsFind(site))}" ${LNK}>Live hours &amp; phone (Maps)</a>${site.src === 'listing' ? '<br><span class="sc-note">From the provider listing — confirm the address and hours by phone before you go.</span>' : ''}</div>`;
+  }
   if (brand) html += `<div class="gate"><span>&#9888;</span><span><strong>Every ${esc(brand.name)} location is approved.</strong> Enter the address and phone number of the location you are using, and call to confirm it is open.</span></div>
       <div class="field"><label>${esc(brand.name)} location — address and phone</label><input type="text" id="f-siteOtherName" value="${esc(d.siteOtherName)}" placeholder="Street address, city, and phone number"></div>`;
   if (d.siteChoice === 'other') html += `<div class="gate"><span>&#9888;</span><span><strong>Use a listed site whenever you can.</strong> A location that is not on this list needs authorization from your DM or HR before you transport. Record who authorized it.</span></div>
@@ -620,7 +1371,9 @@ function render() {
         <div class="field"><label>Employee First Name</label><input type="text" id="f-employee" value="${esc(S.data.employee)}" placeholder="Used to personalize the scripts"></div>
         <div class="field"><label>Employee Last Name</label><input type="text" id="f-employeeLast" value="${esc(S.data.employeeLast)}" placeholder="For the incident record"></div>
         <div class="field"><label>Employee ID (optional)</label><input type="text" id="f-employeeId" value="${esc(S.data.employeeId)}" placeholder="Associate / employee number, if you have it"></div>
-        <div class="field"><label>Location / Store / Facility</label><input type="text" id="f-location" value="${esc(S.data.location)}" placeholder="Store number or facility name"></div>
+        <div class="field"><label>Store / Location</label><input type="text" id="f-location" list="storeList" value="${esc(S.data.location)}" placeholder="Type a store number or name, e.g. 006 or Bay Area" autocomplete="off">
+          ${storeDatalistHTML()}
+          <p style="margin-top:6px;font-size:12.5px;color:var(--mid);">Pick your store from the list. Not on the list? Type the store or facility name and continue.</p></div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="saveSetup()">Begin the Process <span class="arrow">&#8594;</span></button>
         </div>
@@ -662,7 +1415,8 @@ function render() {
         <div class="phase-label pre">Step 3 of 4 — Before the Conversation</div>
         <h2>NOTIFY — Contact your DM or HR first.</h2>
         <p class="lead">You must contact your District Manager or HR <strong>before</strong> engaging the employee — and again after. Do not have the conversation until it is agreed to proceed with the reasonable suspicion process.</p>
-        <div class="field"><label>Who did you contact? (DM / HR name)</label><input type="text" id="f-dmContact" value="${esc(S.data.dmContact)}" placeholder="Name and role"></div>
+        <div class="field"><label>Who did you contact? — Name</label><input type="text" id="f-dmName" value="${esc(S.data.dmName)}" placeholder="First and last name" autocomplete="off"></div>
+        <div class="field"><label>Their role</label><input type="text" id="f-dmRole" value="${esc(S.data.dmRole)}" placeholder="e.g. District Manager, HR Business Partner" autocomplete="off"></div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="saveNotify()">DM/HR Contacted &amp; Agreed to Proceed <span class="arrow">&#8594;</span></button>
           <button class="btn btn-neutral" onclick="logEvent('Process paused — DM/HR did not approve proceeding or could not be reached.'); alert('Do not proceed with the conversation until your DM or HR has agreed. Keep the employee in a safe, supervised, non-driving status while you wait.')">DM/HR Not Reached Yet — What Do I Do?</button>
@@ -714,7 +1468,7 @@ function render() {
         <div class="gate" style="margin-bottom:6px;"><span>4.</span><span><strong>The employee must provide proof of testing before returning to work.</strong> They do not resume their duties until that proof is received.</span></div>
 
         <div style="margin-top:14px;">${siteSelectorHTML('Testing site for the next-day appointment')}</div>
-        <div class="field"><label>Scheduled appointment — date and time</label><input type="text" id="f-ahTime" value="${esc(S.data.ahTime)}" placeholder="e.g. Tuesday 10/27 at 8:00 AM"></div>
+        <div class="field"><label>Scheduled appointment — date and time</label><input type="text" id="f-ahTime" value="${esc(S.data.ahTime)}" placeholder="${esc(ahPlaceholder())}">${ahHint()}</div>
 
         <div class="safe-travel">
           <div class="st-title">&#128663; Safe travel home — your options</div>
@@ -862,7 +1616,7 @@ function render() {
       <div class="card">
         <div class="phase-label pre">Closing Step</div>
         <h2>NOTIFY — Contact your DM or HR again.</h2>
-        <p class="lead">The training requires contact <strong>before and after</strong> engaging the employee. Call ${esc(S.data.dmContact) || 'your DM/HR contact'} now, report what happened, and confirm next steps (test results handling, pay, return-to-work, or termination process).</p>
+        <p class="lead">The training requires contact <strong>before and after</strong> engaging the employee. Call ${esc(S.data.dmName || S.data.dmContact) || 'your DM/HR contact'} now, report what happened, and confirm next steps (test results handling, pay, return-to-work, or termination process).</p>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="logEvent('DM/HR contacted AFTER the process — outcome reported and next steps confirmed.'); S.data.generatedISO = new Date().toISOString(); pushState('record')">&#10003;&nbsp; DM/HR Notified — Generate Incident Record <span class="arrow">&#8594;</span></button>
         </div>
@@ -903,7 +1657,10 @@ function saveSetup() {
   S.data.employee = document.getElementById('f-employee').value.trim();
   S.data.employeeLast = document.getElementById('f-employeeLast').value.trim();
   S.data.employeeId = document.getElementById('f-employeeId').value.trim();
-  S.data.location = document.getElementById('f-location').value.trim();
+  const rawLoc = document.getElementById('f-location').value.trim();
+  const st = resolveStore(rawLoc);
+  S.data.storeNum = st ? st.n : '';
+  S.data.location = st ? storeFull(st) : rawLoc;
   if (!S.data.manager || !S.data.employee || !S.data.employeeLast) { alert('Enter your name and the employee\'s first and last name to begin.'); return; }
   logEvent('Process started by ' + S.data.manager + ' regarding ' + employeeFull() + (S.data.employeeId ? ' (ID ' + S.data.employeeId + ')' : '') + (S.data.location ? ' at ' + S.data.location : '') + '.');
   pushState('observe');
@@ -926,8 +1683,11 @@ function saveCorroborate() {
 }
 
 function saveNotify() {
-  S.data.dmContact = document.getElementById('f-dmContact').value.trim();
-  if (!S.data.dmContact) { alert('Enter who you contacted (DM or HR) before proceeding.'); return; }
+  S.data.dmName = document.getElementById('f-dmName').value.trim();
+  S.data.dmRole = document.getElementById('f-dmRole').value.trim();
+  if (!S.data.dmName) { alert('Enter the name of the DM or HR person you contacted before proceeding.'); return; }
+  if (!S.data.dmRole) { alert('Enter their role (for example, District Manager or HR Business Partner) before proceeding.'); return; }
+  S.data.dmContact = S.data.dmName + ', ' + S.data.dmRole;
   logEvent('DM/HR contacted BEFORE the conversation: ' + S.data.dmContact + ' — agreed to proceed with the reasonable suspicion process.');
   pushState('conversation');
 }
@@ -1021,6 +1781,8 @@ function recordModel() {
   return {
     dateLong: firstISO ? fmtDateLong(firstISO) : today(),
     location: d.location || '—',
+    storeAddr: (storeByNum(d.storeNum) ? storeAddress(storeByNum(d.storeNum)) : ''),
+    regionDistrict: (storeByNum(d.storeNum) ? [storeByNum(d.storeNum).region, storeByNum(d.storeNum).district].filter(Boolean).join(', ') : ''),
     employee: employeeFull() + (d.employeeId ? ' (ID ' + d.employeeId + ')' : ''),
     manager: d.manager || '—',
     witness: d.witness || '—',
@@ -1060,6 +1822,8 @@ function recordHTML() {
   let rows = '';
   rows += kv('Date of Incident', m.dateLong);
   rows += kv('Location', m.location);
+  if (m.storeAddr) rows += kv('Store Address', m.storeAddr);
+  if (m.regionDistrict) rows += kv('Region / District', m.regionDistrict);
   rows += kv('Employee', m.employee);
   rows += kv('Initiating Manager', m.manager);
   rows += kv('Witnessing Manager', m.witness);
@@ -1107,6 +1871,8 @@ function recordText() {
   L.push('INCIDENT SUMMARY', '-'.repeat(40));
   row('Date of Incident', m.dateLong);
   row('Location', m.location);
+  if (m.storeAddr) row('Store Address', m.storeAddr);
+  if (m.regionDistrict) row('Region / District', m.regionDistrict);
   row('Employee', m.employee);
   row('Initiating Manager', m.manager);
   row('Witnessing Manager', m.witness);
