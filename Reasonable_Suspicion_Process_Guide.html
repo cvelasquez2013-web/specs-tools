@@ -57,6 +57,7 @@
 
   .site-detail { background: var(--green-bg); border: 1px solid var(--green-border); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--slate); line-height: 1.6; margin-bottom: 14px; }
   .site-detail strong { color: var(--charcoal); }
+  .verify-banner { background: var(--gold-bg); border: 1px solid var(--gold-border); border-left: 5px solid var(--gold-border); border-radius: 8px; padding: 10px 14px; margin: 4px 0 14px; font-size: 13.5px; line-height: 1.5; color: var(--gold-text); }
   .rec-banner { background: var(--green-bg); border: 1px solid var(--green-border); border-radius: 8px; padding: 10px 14px; font-size: 13.5px; line-height: 1.55; margin-bottom: 12px; color: var(--charcoal); }
   .badge-rec { display: inline-block; background: var(--green); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: 1px; }
   .st { font-size: 12.5px; font-weight: 700; margin-top: 2px; }
@@ -65,7 +66,7 @@
   .st-closed { color: #B3261E; }
   .st-unk { color: var(--mid); }
   .sc-links { font-size: 12.5px; margin-top: 4px; }
-  .sc-links a, .site-detail a, .near-links a { color: #1A5FB4; text-decoration: underline; }
+  .sc-links a, .sc-sub a, .site-detail a, .near-links a { color: #1A5FB4; text-decoration: underline; }
   .sc-note { color: var(--mid); }
   .near-links { font-size: 12.5px; color: var(--mid); line-height: 1.6; margin: 2px 0 14px; }
   .near-head { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--mid); margin: 4px 0 8px; }
@@ -380,6 +381,7 @@ function name() { return esc(S.data.employee) || 'the employee'; }
 //   hours:   listed hours, e.g. "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm". Blank means not listed.
 //            Use "Mon-Sun 8am-Midnight" style for late closes. The app reads this text to show open / closed.
 //   area:    city, used to group the dropdown
+//   ver:     'official' = checked against the brand's own web page on the date in DATA_CHECKED; 'directory' = a public directory only; blank = not checked online
 //   src:     'spec' = from Spec's in-network provider list, 'listing' = from public provider listings (confirm by phone)
 // STORE_NEAREST: 'store number': [[site id, miles], [site id, miles, 1], ...]
 //   A third value of 1 means the miles are an estimate from ZIP codes, not a driving distance.
@@ -608,206 +610,206 @@ const STORES = [
 ];
 
 const APPROVED_SITES = [
-  { id: "concentra-15810-midway-rd-addison", name: "Concentra", address: "15810 Midway Rd, Addison, TX 75001", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Addison", src: "listing" },
-  { id: "carenow-1218-w-mcdermott-dr-allen", name: "CareNow", address: "1218 W McDermott Dr, Allen, TX 75013", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Allen", src: "listing" },
-  { id: "concentra-1619-s-kentucky-st-amarillo", name: "Concentra", address: "1619 S Kentucky St, Amarillo, TX 79102", phone: "", hours: "", area: "Amarillo", src: "listing" },
-  { id: "concentra-7214-crawford-rd-argyle", name: "Concentra", address: "7214 Crawford Rd, Argyle, TX 76226", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-5pm, Sun Closed", area: "Argyle", src: "listing" },
-  { id: "carenow-5405-s-cooper-st-arlington", name: "CareNow", address: "5405 S Cooper St, Arlington, TX 76017", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Arlington", src: "listing" },
-  { id: "concentra-2160-e-lamar-blvd-arlington", name: "Concentra", address: "2160 E Lamar Blvd, Arlington, TX 76006", phone: "", hours: "Mon Closed, Tue-Fri 8am-5pm, Sat 8am-4pm, Sun Closed", area: "Arlington", src: "listing" },
-  { id: "concentra-511-e-interstate-20-arlington", name: "Concentra", address: "511 E Interstate 20, Arlington, TX 76014", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Arlington", src: "listing" },
-  { id: "carenow-10001-research-blvd-austin", name: "CareNow", address: "10001 Research Blvd, Austin, TX 78759", phone: "", hours: "Mon-Thu 8am-8pm, Fri 8am-7pm, Sat 8am-5pm, Sun 8am-8pm", area: "Austin", src: "listing" },
-  { id: "carenow-10625-w-parmer-ln-austin", name: "CareNow", address: "10625 W Parmer Ln, Austin, TX 78717", phone: "", hours: "Mon-Thu 8am-8pm, Fri 8am-7pm, Sat 8am-5pm, Sun 8am-8pm", area: "Austin", src: "listing" },
-  { id: "carenow-11521-ranch-rd-620-n-austin", name: "CareNow", address: "11521 Ranch Rd 620 N, Austin, TX 78726", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing" },
-  { id: "carenow-12415-n-interstate-35-frontage-rd-austin", name: "CareNow", address: "12415 N Interstate 35 Frontage Rd, Austin, TX 78753", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing" },
-  { id: "carenow-1920-e-riverside-dr-austin", name: "CareNow", address: "1920 E Riverside Dr, Austin, TX 78741", phone: "", hours: "", area: "Austin", src: "listing" },
-  { id: "carenow-208-w-ben-white-blvd-austin", name: "CareNow", address: "208 W Ben White Blvd, Austin, TX 78704", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing" },
-  { id: "carenow-2303-ranch-rd-620-s-austin", name: "CareNow", address: "2303 Ranch Rd 620 S, Austin, TX 78734", phone: "", hours: "", area: "Austin", src: "listing" },
-  { id: "carenow-3906-n-lamar-blvd-austin", name: "CareNow", address: "3906 N Lamar Blvd, Austin, TX 78756", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing" },
-  { id: "carenow-5033-w-us-hwy-290-service-rd-austin", name: "CareNow", address: "5033 W US Hwy 290 Service Rd, Austin, TX 78746", phone: "", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "Austin", src: "listing" },
-  { id: "carenow-517-s-lamar-blvd-austin", name: "CareNow", address: "517 S Lamar Blvd, Austin, TX 78704", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing" },
-  { id: "carenow-7212-burnet-rd-austin", name: "CareNow", address: "7212 Burnet Rd, Austin, TX 78757", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing" },
-  { id: "concentra-10001-s-i-35-frontage-rd-austin", name: "Concentra", address: "10001 S I-35 Frontage Rd, Austin, TX 78747", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Austin", src: "listing" },
-  { id: "concentra-13831-us-183-hwy-austin", name: "Concentra", address: "13831 US-183 Hwy, Austin, TX 78750", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Austin", src: "listing" },
-  { id: "concentra-2000-w-anderson-ln-austin", name: "Concentra", address: "2000 W Anderson Ln, Austin, TX 78757", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Austin", src: "listing" },
-  { id: "concentra-2171-woodward-st-austin", name: "Concentra", address: "2171 Woodward St, Austin, TX 78744", phone: "", hours: "", area: "Austin", src: "listing" },
-  { id: "concentra-3801-s-lamar-blvd-austin", name: "Concentra", address: "3801 S Lamar Blvd, Austin, TX 78704", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Austin", src: "listing" },
-  { id: "concentra-9333-research-blvd-austin", name: "Concentra", address: "9333 Research Blvd, Austin, TX 78759", phone: "", hours: "Mon-Fri 8am-8pm, Sat 9am-5pm, Sun 10am-5pm", area: "Austin", src: "listing" },
-  { id: "matagorda-regional-medical-center-104-7th-st-bay-city", name: "Matagorda Regional Medical Center", address: "104 7th St, Bay City, TX 77414", phone: "979-245-6383", hours: "Mon-Fri 8am-7pm, Sat 8am-6pm, Sun Closed", area: "Bay City", src: "spec" },
-  { id: "afc-6040-garth-rd-ste-10-baytown", name: "AFC", address: "6040 Garth Rd Ste 10, Baytown, TX 77521", phone: "281-720-7806", hours: "Mon-Sun 8am-8pm", area: "Baytown", src: "spec" },
-  { id: "nextlevel-7710-garth-rd-ste-a-baytown", name: "NextLevel", address: "7710 Garth Rd Ste A, Baytown, TX 77627", phone: "713-439-7995", hours: "Mon-Sun 9am-9pm", area: "Baytown", src: "spec" },
-  { id: "carenow-2114-boca-chica-blvd-brownsville", name: "CareNow", address: "2114 Boca Chica Blvd, Brownsville, TX 78521", phone: "", hours: "", area: "Brownsville", src: "listing" },
-  { id: "carenow-1567-main-st-buda", name: "CareNow", address: "1567 Main St, Buda, TX 78610", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Buda", src: "listing" },
-  { id: "carenow-1501-sw-wilshire-blvd-burleson", name: "CareNow", address: "1501 SW Wilshire Blvd, Burleson, TX 76028", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Burleson", src: "listing" },
-  { id: "carenow-1017-w-hebron-pkwy-carrollton", name: "CareNow", address: "1017 W Hebron Pkwy, Carrollton, TX 75010", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Carrollton", src: "listing" },
-  { id: "concentra-1345-valwood-pkwy-carrollton", name: "Concentra", address: "1345 Valwood Pkwy, Carrollton, TX 75006", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Carrollton", src: "listing" },
-  { id: "carenow-345-n-hwy-67-cedar-hill", name: "CareNow", address: "345 N Hwy 67, Cedar Hill, TX 75104", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Cedar Hill", src: "listing" },
-  { id: "carenow-5001-183a-cedar-park", name: "CareNow", address: "5001 183A, Cedar Park, TX 78613", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Cedar Park", src: "listing" },
-  { id: "carenow-1150-w-dallas-st-conroe", name: "CareNow", address: "1150 W Dallas St, Conroe, TX 77301", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Conroe", src: "listing" },
-  { id: "carenow-645-tx-121-coppell", name: "CareNow", address: "645 TX-121, Coppell, TX 75019", phone: "", hours: "Mon 8am-5pm, Tue-Sat 8am-10pm, Sun 8am-8pm", area: "Coppell", src: "listing" },
-  { id: "concentra-4025-s-padre-island-dr-corpus-christi", name: "Concentra", address: "4025 S Padre Island Dr, Corpus Christi, TX 78411", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Corpus Christi", src: "listing" },
-  { id: "carenow-9110-barker-cypress-rd-cypress", name: "CareNow", address: "9110 Barker Cypress Rd, Cypress, TX 77433", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Cypress", src: "listing" },
-  { id: "carenow-12801-midway-rd-dallas", name: "CareNow", address: "12801 Midway Rd, Dallas, TX 75244", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
-  { id: "carenow-14856-preston-rd-dallas", name: "CareNow", address: "14856 Preston Rd, Dallas, TX 75254", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
-  { id: "carenow-2221-abrams-rd-dallas", name: "CareNow", address: "2221 Abrams Rd, Dallas, TX 75214", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
-  { id: "carenow-2404-mckinney-ave-dallas", name: "CareNow", address: "2404 McKinney Ave, Dallas, TX 75201", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
-  { id: "carenow-39769-i-20-dallas", name: "CareNow", address: "39769 I-20, Dallas, TX 75237", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
-  { id: "carenow-4501-lemmon-ave-dallas", name: "CareNow", address: "4501 Lemmon Ave, Dallas, TX 75219", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
-  { id: "carenow-4617-n-central-expy-dallas", name: "CareNow", address: "4617 N Central Expy, Dallas, TX 75205", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
-  { id: "carenow-4844-greenville-ave-dallas", name: "CareNow", address: "4844 Greenville Ave, Dallas, TX 75206", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
-  { id: "carenow-9323-lyndon-b-johnson-fwy-dallas", name: "CareNow", address: "9323 Lyndon B Johnson Fwy, Dallas, TX 75243", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing" },
-  { id: "concentra-1450-empire-central-dr-dallas", name: "Concentra", address: "1450 Empire Central Dr, Dallas, TX 75247", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Dallas", src: "listing" },
-  { id: "concentra-2920-n-stemmons-fwy-dallas", name: "Concentra", address: "2920 N Stemmons Fwy, Dallas, TX 75247", phone: "", hours: "Mon-Fri 8am-5pm, Sat 9am-5pm, Sun Closed", area: "Dallas", src: "listing" },
-  { id: "concentra-5520-s-westmoreland-rd-dallas", name: "Concentra", address: "5520 S Westmoreland Rd, Dallas, TX 75237", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Dallas", src: "listing" },
-  { id: "concentra-5601-greenville-ave-dallas", name: "Concentra", address: "5601 Greenville Ave, Dallas, TX 75206", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Dallas", src: "listing" },
-  { id: "carenow-9055-spencer-hwy-deer-park", name: "CareNow", address: "9055 Spencer Hwy, Deer Park, TX 77536", phone: "", hours: "", area: "Deer Park", src: "listing" },
-  { id: "concentra-125-e-8th-st-deer-park", name: "Concentra", address: "125 E 8th St, Deer Park, TX 77536", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Deer Park", src: "listing" },
-  { id: "carenow-2520-w-university-dr-denton", name: "CareNow", address: "2520 W University Dr, Denton, TX 76201", phone: "", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "Denton", src: "listing" },
-  { id: "carenow-3751-i-35e-denton", name: "CareNow", address: "3751 I-35E, Denton, TX 76210", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Denton", src: "listing" },
-  { id: "concentra-2215-s-loop-288-denton", name: "Concentra", address: "2215 S Loop 288, Denton, TX 76205", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-5pm, Sun 9am-6pm", area: "Denton", src: "listing" },
-  { id: "carenow-3150-gulf-fwy-s-dickinson", name: "CareNow", address: "3150 Gulf Fwy S, Dickinson, TX 77539", phone: "281-534-0001", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Dickinson", src: "spec" },
-  { id: "carenow-293-e-trenton-rd-edinburg", name: "CareNow", address: "293 E Trenton Rd, Edinburg, TX 78539", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Edinburg", src: "listing" },
-  { id: "carenow-7845-n-mesa-st-el-paso", name: "CareNow", address: "7845 N Mesa St, El Paso, TX 79932", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "El Paso", src: "listing" },
-  { id: "carenow-9640-montwood-dr-el-paso", name: "CareNow", address: "9640 Montwood Dr, El Paso, TX 79925", phone: "", hours: "", area: "El Paso", src: "listing" },
-  { id: "concentra-1610-n-zaragoza-rd-el-paso", name: "Concentra", address: "1610 N Zaragoza Rd, El Paso, TX 79936", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "El Paso", src: "listing" },
-  { id: "concentra-6320-gtwy-blvd-e-el-paso", name: "Concentra", address: "6320 Gtwy Blvd E, El Paso, TX 79905", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "El Paso", src: "listing" },
-  { id: "carenow-610-e-us-hwy-80-forney", name: "CareNow", address: "610 E US Hwy 80, Forney, TX 75126", phone: "", hours: "", area: "Forney", src: "listing" },
-  { id: "carenow-2700-horne-st-fort-worth", name: "CareNow", address: "2700 Horne St, Fort Worth, TX 76107", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
-  { id: "carenow-2900-renaissance-sq-fort-worth", name: "CareNow", address: "2900 Renaissance Sq, Fort Worth, TX 76105", phone: "", hours: "", area: "Fort Worth", src: "listing" },
-  { id: "carenow-3520-nw-centre-dr-fort-worth", name: "CareNow", address: "3520 NW Centre Dr, Fort Worth, TX 76135", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
-  { id: "carenow-4524-w-bailey-boswell-rd-fort-worth", name: "CareNow", address: "4524 W Bailey Boswell Rd, Fort Worth, TX 76179", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
-  { id: "carenow-454-jim-wright-fwy-fort-worth", name: "CareNow", address: "454 Jim Wright Fwy, Fort Worth, TX 76108", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
-  { id: "carenow-5653-mcpherson-blvd-fort-worth", name: "CareNow", address: "5653 McPherson Blvd, Fort Worth, TX 76123", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
-  { id: "carenow-7232-north-fwy-fort-worth", name: "CareNow", address: "7232 North Fwy, Fort Worth, TX 76137", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
-  { id: "carenow-7400-mc-cart-ave-fort-worth", name: "CareNow", address: "7400 Mc Cart Ave, Fort Worth, TX 76133", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
-  { id: "carenow-8450-east-fwy-fort-worth", name: "CareNow", address: "8450 East Fwy, Fort Worth, TX 76120", phone: "", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
-  { id: "carenow-8901-n-fwy-fort-worth", name: "CareNow", address: "8901 N Fwy, Fort Worth, TX 76177", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing" },
-  { id: "concentra-2500-west-fwy-fort-worth", name: "Concentra", address: "2500 West Fwy, Fort Worth, TX 76102", phone: "", hours: "Mon-Fri 8am-5pm, Sat 8am-4pm, Sun Closed", area: "Fort Worth", src: "listing" },
-  { id: "concentra-4060-sandshell-dr-fort-worth", name: "Concentra", address: "4060 Sandshell Dr, Fort Worth, TX 76137", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Fort Worth", src: "listing" },
-  { id: "concentra-1002-abc-ave-ste-600-freeport", name: "Concentra", address: "1002 Abc Ave Ste 600, Freeport, TX 77541", phone: "979-233-6571", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Freeport", src: "spec" },
-  { id: "carenow-1729-s-friendswood-dr-friendswood", name: "CareNow", address: "1729 S Friendswood Dr, Friendswood, TX 77546", phone: "281-402-1930", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Friendswood", src: "spec" },
-  { id: "carenow-301-w-main-st-frisco", name: "CareNow", address: "301 W Main St, Frisco, TX 75034", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Frisco", src: "listing" },
-  { id: "carenow-5644-preston-rd-frisco", name: "CareNow", address: "5644 Preston Rd, Frisco, TX 75034", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Frisco", src: "listing" },
-  { id: "concentra-8756-teel-pkwy-frisco", name: "Concentra", address: "8756 Teel Pkwy, Frisco, TX 75034", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Frisco", src: "listing" },
-  { id: "affinity-2808-61st-st-ste-200-galveston", name: "Affinity", address: "2808 61st St Ste 200, Galveston, TX 77551", phone: "281-886-8964", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Galveston", src: "spec" },
-  { id: "west-isle-2027-61st-st-galveston", name: "West Isle", address: "2027 61st St, Galveston, TX 77551", phone: "409-744-9800", hours: "Mon-Sun 8am-10pm", area: "Galveston", src: "spec" },
-  { id: "carenow-5106-n-president-george-bush-hwy-garland", name: "CareNow", address: "5106 N President George Bush Hwy, Garland, TX 75040", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Garland", src: "listing" },
-  { id: "carenow-565-w-interstate-30-garland", name: "CareNow", address: "565 W Interstate 30, Garland, TX 75043", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Garland", src: "listing" },
-  { id: "concentra-1621-s-jupiter-rd-garland", name: "Concentra", address: "1621 S Jupiter Rd, Garland, TX 75042", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Garland", src: "listing" },
-  { id: "carenow-1205-s-i-35-frontage-rd-georgetown", name: "CareNow", address: "1205 S I-35 Frontage Rd, Georgetown, TX 78626", phone: "", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-7pm", area: "Georgetown", src: "listing" },
-  { id: "carenow-1205-south-i-35-georgetown", name: "CareNow", address: "1205 South I-35, Georgetown, TX 78628", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Georgetown", src: "listing" },
-  { id: "carenow-2520-i-20-frontage-rd-grand-prairie", name: "CareNow", address: "2520 I-20 Frontage Rd, Grand Prairie, TX 75052", phone: "", hours: "Mon-Fri 8am-10pm, Sat 8am-8pm, Sun 8am-5pm", area: "Grand Prairie", src: "listing" },
-  { id: "carenow-5301-william-d-tate-ave-grapevine", name: "CareNow", address: "5301 William D Tate Ave, Grapevine, TX 76051", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Grapevine", src: "listing" },
-  { id: "concentra-2900-denton-hwy-haltom-city", name: "Concentra", address: "2900 Denton Hwy, Haltom City, TX 76117", phone: "", hours: "Mon Closed, Tue-Sat 8am-5pm, Sun 9am-4pm", area: "Haltom City", src: "listing" },
-  { id: "afc-107-yale-st-ste-200-houston", name: "AFC", address: "107 Yale St Ste 200, Houston, TX 77007", phone: "713-861-6060", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-5pm", area: "Houston", src: "spec" },
-  { id: "afc-2402-bay-area-blvd-ste-m-houston", name: "AFC", address: "2402 Bay Area Blvd Ste M, Houston, TX", phone: "832-310-1368 / 832-650-0604", hours: "Mon-Sun 8am-8pm", area: "Houston", src: "spec" },
-  { id: "afc-5568-weslayan-st-houston", name: "AFC", address: "5568 Weslayan St, Houston, TX 77005", phone: "713-666-7050", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Houston", src: "spec" },
-  { id: "carenow-102-w-11th-st-houston", name: "CareNow", address: "102 W 11th St, Houston, TX 77008", phone: "832-539-4707", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Houston", src: "spec" },
-  { id: "carenow-14045-memorial-dr-houston", name: "CareNow", address: "14045 Memorial Dr, Houston, TX", phone: "832-548-4410", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Houston", src: "spec" },
-  { id: "carenow-1917-w-gray-st-houston", name: "CareNow", address: "1917 W Gray St, Houston, TX 77019", phone: "832-260-0650", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Houston", src: "spec" },
-  { id: "carenow-2707-milam-st-houston", name: "CareNow", address: "2707 Milam St, Houston, TX 77006", phone: "832-632-7135", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Houston", src: "spec" },
-  { id: "carenow-2727-dunvale-rd-houston", name: "CareNow", address: "2727 Dunvale Rd, Houston, TX 77063", phone: "", hours: "Mon-Fri 9am-9pm, Sat 9am-7pm, Sun 10am-6pm", area: "Houston", src: "listing" },
-  { id: "carenow-7107-s-texas-6-houston", name: "CareNow", address: "7107 S Texas 6, Houston, TX 77083", phone: "", hours: "", area: "Houston", src: "listing" },
-  { id: "carenow-8470-hwy-6-n-houston", name: "CareNow", address: "8470 Hwy 6 N, Houston, TX 77095", phone: "", hours: "", area: "Houston", src: "listing" },
-  { id: "concentra-1000-n-post-oak-rd-houston", name: "Concentra", address: "1000 N Post Oak Rd, Houston, TX 77055", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
-  { id: "concentra-10909-east-fwy-houston", name: "Concentra", address: "10909 East Fwy, Houston, TX 77029", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
-  { id: "concentra-12345-katy-fwy-houston", name: "Concentra", address: "12345 Katy Fwy, Houston, TX 77079", phone: "281-679-5600", hours: "Mon-Fri 8am-5pm, Sat 9am-4pm, Sun Closed", area: "Houston", src: "spec" },
-  { id: "concentra-124-b-farm-to-market-1960-rd-e-houston", name: "Concentra", address: "124-B Farm to Market 1960 Rd E, Houston, TX 77073", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
-  { id: "concentra-1414-s-loop-w-houston", name: "Concentra", address: "1414 S Loop W, Houston, TX 77054", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
-  { id: "concentra-17410-northwest-fwy-houston", name: "Concentra", address: "17410 Northwest Fwy, Houston, TX 77040", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
-  { id: "concentra-2004-leeland-st-houston", name: "Concentra", address: "2004 Leeland St, Houston, TX 77003", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
-  { id: "concentra-401-greens-rd-houston", name: "Concentra", address: "401 Greens Rd, Houston, TX 77060", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
-  { id: "concentra-6360-w-sam-houston-pkwy-n-houston", name: "Concentra", address: "6360 W Sam Houston Pkwy N, Houston, TX 77041", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
-  { id: "concentra-6545-southwest-fwy-houston", name: "Concentra", address: "6545 Southwest Fwy, Houston, TX 77074", phone: "713-995-6998 / 713-995-6580", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "spec" },
-  { id: "concentra-8508-gulf-fwy-ste-f-houston", name: "Concentra", address: "8508 Gulf Fwy Ste F, Houston, TX 77017", phone: "713-944-4442", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "spec" },
-  { id: "concentra-8799-n-loop-e-fwy-houston", name: "Concentra", address: "8799 N Loop E Fwy, Houston, TX 77029", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing" },
-  { id: "concentra-9200-hempstead-hwy-ste-137-houston", name: "Concentra", address: "9200 Hempstead Hwy Ste 137, Houston, TX 77008", phone: "713-880-9800", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "spec" },
-  { id: "gohealth-11700-westheimer-rd-ste-j-houston", name: "GoHealth", address: "11700 Westheimer Rd Ste J, Houston, TX 77077", phone: "346-575-0067", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Houston", src: "spec" },
-  { id: "gohealth-12740-memorial-dr-ste-100-houston", name: "GoHealth", address: "12740 Memorial Dr Ste 100, Houston, TX 77024", phone: "346-326-9990", hours: "Mon-Sun 8am-Midnight", area: "Houston", src: "spec" },
-  { id: "nextcare-1202-e-nasa-parkway-houston", name: "NextCare", address: "1202 E Nasa Parkway, Houston, TX 77052", phone: "281-335-0606", hours: "Mon-Sun 9am-9pm", area: "Houston", src: "spec" },
-  { id: "nextlevel-4936-beechnut-houston", name: "NextLevel", address: "4936 Beechnut, Houston, TX 77096", phone: "281-439-7995 / 281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Houston", src: "spec" },
-  { id: "nextlevel-5749-san-felipe-houston", name: "NextLevel", address: "5749 San Felipe, Houston, TX 77057", phone: "281-783-8162", hours: "Mon-Fri 9am-9pm, Sat-Sun Closed", area: "Houston", src: "spec" },
-  { id: "carenow-7072-farm-to-market-1960-rd-e-humble", name: "CareNow", address: "7072 Farm to Market 1960 Rd E, Humble, TX 77346", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Humble", src: "listing" },
-  { id: "carenow-779-grapevine-hwy-hurst", name: "CareNow", address: "779 Grapevine Hwy, Hurst, TX 76054", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Hurst", src: "listing" },
-  { id: "carenow-4810-gattis-school-rd-hutto", name: "CareNow", address: "4810 Gattis School Rd, Hutto, TX 78634", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Hutto", src: "listing" },
-  { id: "carenow-2675-n-belt-line-rd-irving", name: "CareNow", address: "2675 N Belt Line Rd, Irving, TX 75062", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Irving", src: "listing" },
-  { id: "carenow-2851-w-lyndon-b-johnson-fwy-irving", name: "CareNow", address: "2851 W Lyndon B Johnson Fwy, Irving, TX 75063", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Irving", src: "listing" },
-  { id: "carenow-7400-n-macarthur-blvd-irving", name: "CareNow", address: "7400 N MacArthur Blvd, Irving, TX 75063", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Irving", src: "listing" },
-  { id: "concentra-2233-e-grauwyler-rd-irving", name: "Concentra", address: "2233 E Grauwyler Rd, Irving, TX 75061", phone: "", hours: "", area: "Irving", src: "listing" },
-  { id: "concentra-5910-n-macarthur-blvd-irving", name: "Concentra", address: "5910 N MacArthur Blvd, Irving, TX 75039", phone: "", hours: "Mon Closed, Tue-Sat 8am-8pm, Sun 8am-5pm", area: "Irving", src: "listing" },
-  { id: "carenow-6501-s-fry-rd-ste-1000-katy", name: "CareNow", address: "6501 S Fry Rd Ste 1000, Katy, TX 77494", phone: "832-260-0670", hours: "Mon-Sun 8am-8pm", area: "Katy", src: "spec" },
-  { id: "concentra-25805-katy-fwy-ste-600-katy", name: "Concentra", address: "25805 Katy Fwy Ste 600, Katy, TX 77494", phone: "346-266-0756", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Katy", src: "spec" },
-  { id: "nextlevel-10625-spring-green-blvd-ste-200-katy", name: "NextLevel", address: "10625 Spring Green Blvd Ste 200, Katy, TX 77494", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Katy", src: "spec" },
-  { id: "nextlevel-1420-katy-fort-bend-rd-ste-105-katy", name: "NextLevel", address: "1420 Katy Fort Bend Rd Ste 105, Katy, TX 77493", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Katy", src: "spec" },
-  { id: "nextlevel-21700-kingsland-blvd-ste-104-katy", name: "NextLevel", address: "21700 Kingsland Blvd Ste 104, Katy, TX 77450", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Katy", src: "spec" },
-  { id: "nextlevel-9722-gaston-rd-ste-190-katy", name: "NextLevel", address: "9722 Gaston Rd Ste 190, Katy, TX 77494", phone: "281-783-8162 / 713-439-7995", hours: "Mon-Sun 9am-9pm", area: "Katy", src: "spec" },
-  { id: "carenow-104-s-main-st-keller", name: "CareNow", address: "104 S Main St, Keller, TX 76248", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Keller", src: "listing" },
-  { id: "carenow-720-s-main-st-keller", name: "CareNow", address: "720 S Main St, Keller, TX 76248", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Keller", src: "listing" },
-  { id: "carenow-300-northpark-dr-kingwood", name: "CareNow", address: "300 Northpark Dr, Kingwood, TX 77339", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Kingwood", src: "listing" },
-  { id: "afc-8850-spencer-hwy-ste-105-la-porte", name: "AFC", address: "8850 Spencer Hwy Ste 105, La Porte, TX 77571", phone: "281-946-9980", hours: "Mon-Sun 8am-8pm", area: "La Porte", src: "spec" },
-  { id: "concentra-1309-west-fairmont-pkwy-ste-x-la-porte", name: "Concentra", address: "1309 West Fairmont Pkwy Ste X, La Porte, TX 77571", phone: "281-470-1542", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "La Porte", src: "spec" },
-  { id: "nextlevel-101-winding-way-ste-a-lake-jackson", name: "NextLevel", address: "101 Winding Way Ste A, Lake Jackson, TX 77566", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Lake Jackson", src: "spec" },
-  { id: "nextlevel-2560-e-league-city-pkwy-ste-b-league-city", name: "NextLevel", address: "2560 E League City Pkwy Ste B, League City, TX 77573", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "League City", src: "spec" },
-  { id: "carenow-144-s-brook-dr-leander", name: "CareNow", address: "144 S Brook Dr, Leander, TX 78641", phone: "", hours: "", area: "Leander", src: "listing" },
-  { id: "carenow-1559-w-main-st-lewisville", name: "CareNow", address: "1559 W Main St, Lewisville, TX 75067", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Lewisville", src: "listing" },
-  { id: "concentra-2403-s-stemmons-fwy-lewisville", name: "Concentra", address: "2403 S Stemmons Fwy, Lewisville, TX 75067", phone: "", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Lewisville", src: "listing" },
-  { id: "concentra-160-slaton-rd-lubbock", name: "Concentra", address: "160 Slaton Rd, Lubbock, TX 79404", phone: "", hours: "", area: "Lubbock", src: "listing" },
-  { id: "concentra-6048-marsha-sharp-fwy-w-lubbock", name: "Concentra", address: "6048 Marsha Sharp Fwy W, Lubbock, TX 79424", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Lubbock", src: "listing" },
-  { id: "carenow-10422-research-forest-dr-magnolia", name: "CareNow", address: "10422 Research Forest Dr, Magnolia, TX 77354", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Magnolia", src: "listing" },
-  { id: "carenow-1501-u-s-287-frontage-rd-mansfield", name: "CareNow", address: "1501 U.S. 287 Frontage Rd, Mansfield, TX 76063", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Mansfield", src: "listing" },
-  { id: "carenow-2901-nolana-ave-mcallen", name: "CareNow", address: "2901 Nolana Ave, McAllen, TX 78501", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "McAllen", src: "listing" },
-  { id: "carenow-5252-w-university-dr-mckinney", name: "CareNow", address: "5252 W University Dr, McKinney, TX 75071", phone: "", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "McKinney", src: "listing" },
-  { id: "carenow-6200-eldorado-pkwy-mckinney", name: "CareNow", address: "6200 Eldorado Pkwy, McKinney, TX 75070", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-5pm, Sun 8am-8pm", area: "McKinney", src: "listing" },
-  { id: "concentra-4928-samuell-blvd-mesquite", name: "Concentra", address: "4928 Samuell Blvd, Mesquite, TX 75149", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Mesquite", src: "listing" },
-  { id: "gohealth-8035-hwy-6-ste-170-missouri-city", name: "GoHealth", address: "8035 Hwy 6 Ste 170, Missouri City, TX 77459", phone: "281-947-0017", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Missouri City", src: "spec" },
-  { id: "nextlevel-8720-hwy-6-ste-400-missouri-city", name: "NextLevel", address: "8720 Hwy 6 Ste 400, Missouri City, TX 77459", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Missouri City", src: "spec" },
-  { id: "carenow-20042-eva-st-montgomery", name: "CareNow", address: "20042 Eva St, Montgomery, TX 77356", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Montgomery", src: "listing" },
-  { id: "carenow-11845-grand-pkwy-new-caney", name: "CareNow", address: "11845 Grand Pkwy, New Caney, TX 77357", phone: "", hours: "", area: "New Caney", src: "listing" },
-  { id: "carenow-6401-ne-loop-820-north-richland-hills", name: "CareNow", address: "6401 NE Loop 820, North Richland Hills, TX 76180", phone: "", hours: "", area: "North Richland Hills", src: "listing" },
-  { id: "carenow-8541-davis-blvd-north-richland-hills", name: "CareNow", address: "8541 Davis Blvd, North Richland Hills, TX 76182", phone: "", hours: "", area: "North Richland Hills", src: "listing" },
-  { id: "carenow-5233-fairmont-pkwy-ste-1-pasadena", name: "CareNow", address: "5233 Fairmont Pkwy Ste 1, Pasadena, TX 77505", phone: "713-568-0240", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Pasadena", src: "spec" },
-  { id: "nextcare-6825-spencer-hwy-pasadena", name: "NextCare", address: "6825 Spencer Hwy, Pasadena, TX 77505", phone: "281-741-0070", hours: "Mon-Sun 9am-9pm", area: "Pasadena", src: "spec" },
-  { id: "carenow-11826-broadway-st-pearland", name: "CareNow", address: "11826 Broadway St, Pearland, TX 77584", phone: "346-422-2400", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Pearland", src: "spec" },
-  { id: "carenow-2907-east-broadway-st-pearland", name: "CareNow", address: "2907 East Broadway St, Pearland, TX 77581", phone: "281-925-1970", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Pearland", src: "spec" },
-  { id: "nextlevel-8325-broadway-st-ste-220-pearland", name: "NextLevel", address: "8325 Broadway St Ste 220, Pearland, TX 77581", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Pearland", src: "spec" },
-  { id: "carenow-3821-spring-creek-pkwy-plano", name: "CareNow", address: "3821 Spring Creek Pkwy, Plano, TX 75023", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Plano", src: "listing" },
-  { id: "concentra-1300-n-central-expy-plano", name: "Concentra", address: "1300 N Central Expy, Plano, TX 75074", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Plano", src: "listing" },
-  { id: "carenow-4530-w-university-dr-prosper", name: "CareNow", address: "4530 W University Dr, Prosper, TX 75078", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Prosper", src: "listing" },
-  { id: "carenow-781-s-preston-rd-prosper", name: "CareNow", address: "781 S Preston Rd, Prosper, TX 75078", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Prosper", src: "listing" },
-  { id: "carenow-377-w-campbell-rd-richardson", name: "CareNow", address: "377 W Campbell Rd, Richardson, TX 75080", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Richardson", src: "listing" },
-  { id: "afc-18310-w-airport-blvd-ste-100-richmond", name: "AFC", address: "18310 W Airport Blvd Ste 100, Richmond, TX", phone: "832-730-4481 / 832-756-7772", hours: "Mon-Sun 8am-8pm", area: "Richmond", src: "spec" },
-  { id: "afc-3415-fm-762-ste-180-richmond", name: "AFC", address: "3415 FM 762 Ste 180, Richmond, TX 77469", phone: "281-699-5680", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-5pm", area: "Richmond", src: "spec" },
-  { id: "carenow-1530-n-us-hwy-377-roanoke", name: "CareNow", address: "1530 N US Hwy 377, Roanoke, TX 76262", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Roanoke", src: "listing" },
-  { id: "carenow-600-horizon-rd-rockwall", name: "CareNow", address: "600 Horizon Rd, Rockwall, TX 75032", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Rockwall", src: "listing" },
-  { id: "nextlevel-4002-fm-762-rd-ste-100-rosenberg", name: "NextLevel", address: "4002 FM 762 Rd Ste 100, Rosenberg, TX 77469", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Rosenberg", src: "spec" },
-  { id: "carenow-2800-s-i-35-frontage-rd-round-rock", name: "CareNow", address: "2800 S I-35 Frontage Rd, Round Rock, TX 78681", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Round Rock", src: "listing" },
-  { id: "concentra-117-louis-henna-blvd-round-rock", name: "Concentra", address: "117 Louis Henna Blvd, Round Rock, TX 78664", phone: "", hours: "Mon-Fri 8am-8pm, Sat-Sun 10am-6pm", area: "Round Rock", src: "listing" },
-  { id: "carenow-9101-lakeview-pkwy-rowlett", name: "CareNow", address: "9101 Lakeview Pkwy, Rowlett, TX 75088", phone: "", hours: "Mon-Fri 8am-10pm, Sat 8am-8pm, Sun 8am-5pm", area: "Rowlett", src: "listing" },
-  { id: "carenow-10538-potranco-rd-san-antonio", name: "CareNow", address: "10538 Potranco Rd, San Antonio, TX 78251", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Antonio", src: "listing" },
-  { id: "carenow-17122-bulverde-rd-san-antonio", name: "CareNow", address: "17122 Bulverde Rd, San Antonio, TX 78247", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Antonio", src: "listing" },
-  { id: "carenow-5410-broadway-san-antonio", name: "CareNow", address: "5410 Broadway, San Antonio, TX 78209", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Antonio", src: "listing" },
-  { id: "carenow-5755-northwest-loop-410-san-antonio", name: "CareNow", address: "5755 Northwest Loop 410, San Antonio, TX 78238", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Antonio", src: "listing" },
-  { id: "concentra-10200-broadway-san-antonio", name: "Concentra", address: "10200 Broadway, San Antonio, TX 78217", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing" },
-  { id: "concentra-12651-vance-jackson-rd-san-antonio", name: "Concentra", address: "12651 Vance Jackson Rd, San Antonio, TX 78230", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing" },
-  { id: "concentra-12702-toepperwein-rd-san-antonio", name: "Concentra", address: "12702 Toepperwein Rd, San Antonio, TX 78233", phone: "", hours: "Mon-Fri 8am-8pm, Sat-Sun 10am-6pm", area: "San Antonio", src: "listing" },
-  { id: "concentra-3453-i-35-frontage-rd-san-antonio", name: "Concentra", address: "3453 I-35 Frontage Rd, San Antonio, TX 78219", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing" },
-  { id: "concentra-400-e-quincy-st-san-antonio", name: "Concentra", address: "400 E Quincy St, San Antonio, TX 78215", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing" },
-  { id: "concentra-7555-northwest-loop-410-san-antonio", name: "Concentra", address: "7555 Northwest Loop 410, San Antonio, TX 78245", phone: "", hours: "Mon-Wed 8am-5pm, Thu 8am-8pm, Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing" },
-  { id: "carenow-920-w-interstate-hwy-2-san-juan", name: "CareNow", address: "920 W Interstate Hwy 2, San Juan, TX 78589", phone: "", hours: "", area: "San Juan", src: "listing" },
-  { id: "carenow-301-n-guadalupe-st-san-marcos", name: "CareNow", address: "301 N Guadalupe St, San Marcos, TX 78666", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Marcos", src: "listing" },
-  { id: "carenow-14775-i-35-frontage-rd-schertz", name: "CareNow", address: "14775 I-35 Frontage Rd, Schertz, TX 78154", phone: "", hours: "", area: "Schertz", src: "listing" },
-  { id: "carenow-2751-e-state-hwy-114-southlake", name: "CareNow", address: "2751 E State Hwy 114, Southlake, TX 76092", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Southlake", src: "listing" },
-  { id: "carenow-21700-kuykendahl-rd-spring", name: "CareNow", address: "21700 Kuykendahl Rd, Spring, TX 77379", phone: "", hours: "", area: "Spring", src: "listing" },
-  { id: "carenow-2540-farm-to-market-2920-spring", name: "CareNow", address: "2540 Farm to Market 2920, Spring, TX 77388", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Spring", src: "listing" },
-  { id: "carenow-7306-louetta-rd-spring", name: "CareNow", address: "7306 Louetta Rd, Spring, TX 77379", phone: "", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "Spring", src: "listing" },
-  { id: "concentra-10521-corporate-dr-stafford", name: "Concentra", address: "10521 Corporate Dr, Stafford, TX 77477", phone: "281-277-7997", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Stafford", src: "spec" },
-  { id: "afc-3551-hwy-6-sugar-land", name: "AFC", address: "3551 Hwy 6, Sugar Land, TX 77478", phone: "281-491-5742 / 832-324-9996", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Sugar Land", src: "spec" },
-  { id: "carenow-1403-hwy-6-sugar-land", name: "CareNow", address: "1403 Hwy 6, Sugar Land, TX 77478", phone: "832-260-0640", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Sugar Land", src: "spec" },
-  { id: "nextlevel-16312-southwest-fwy-sugar-land", name: "NextLevel", address: "16312 Southwest Fwy, Sugar Land, TX 77479", phone: "281-783-8162", hours: "Mon-Sun 9am-9pm", area: "Sugar Land", src: "spec" },
-  { id: "carenow-22605-tomball-pkwy-tomball", name: "CareNow", address: "22605 Tomball Pkwy, Tomball, TX 77377", phone: "", hours: "Mon-Fri 9am-9pm, Sat 9am-7pm, Sun 10am-6pm", area: "Tomball", src: "listing" },
-  { id: "concentra-5040-kinsey-dr-tyler", name: "Concentra", address: "5040 Kinsey Dr, Tyler, TX 75703", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Tyler", src: "listing" },
-  { id: "concentra-4205-franklin-ave-waco", name: "Concentra", address: "4205 Franklin Ave, Waco, TX 76710", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Waco", src: "listing" },
-  { id: "carenow-2733-fort-worth-hwy-weatherford", name: "CareNow", address: "2733 Fort Worth Hwy, Weatherford, TX 76087", phone: "", hours: "", area: "Weatherford", src: "listing" },
-  { id: "carenow-3080-e-farm-to-market-544-wylie", name: "CareNow", address: "3080 E Farm To Market 544, Wylie, TX 75098", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Wylie", src: "listing" },
+  { id: "concentra-15810-midway-rd-addison", name: "Concentra", address: "15810 Midway Rd, Addison, TX 75001", phone: "(972) 458-8111", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Addison", src: "listing", ver: "directory" },
+  { id: "carenow-1218-w-mcdermott-dr-allen", name: "CareNow", address: "1218 W McDermott Dr, Allen, TX 75013", phone: "972-390-9000", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Allen", src: "listing", ver: "official" },
+  { id: "concentra-1619-s-kentucky-st-amarillo", name: "Concentra", address: "1619 S Kentucky Street, Suite F600, Amarillo, TX 79102", phone: "806.373.2200", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Amarillo", src: "listing", ver: "official" },
+  { id: "concentra-7214-crawford-rd-argyle", name: "Concentra", address: "7214 Crawford Rd, Argyle, TX 76226", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-5pm, Sun Closed", area: "Argyle", src: "listing", ver: "directory" },
+  { id: "carenow-5405-s-cooper-st-arlington", name: "CareNow", address: "5405 S Cooper St, Arlington, TX 76017", phone: "817-465-4928", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Arlington", src: "listing", ver: "official" },
+  { id: "concentra-2160-e-lamar-blvd-arlington", name: "Concentra", address: "2160 E Lamar Blvd, Arlington, TX 76006", phone: "(972) 988-0441", hours: "Mon Closed, Tue-Fri 8am-5pm, Sat 8am-4pm, Sun Closed", area: "Arlington", src: "listing", ver: "directory" },
+  { id: "concentra-511-e-interstate-20-arlington", name: "Concentra", address: "511 E. I-20, Arlington, TX 76018", phone: "817.261.5166", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Arlington", src: "listing", ver: "official" },
+  { id: "carenow-10001-research-blvd-austin", name: "CareNow", address: "10001 Research Blvd, Austin, TX 78759", phone: "512-993-3270", hours: "Mon-Thu 8am-8pm, Fri 8am-7pm, Sat 8am-5pm, Sun 8am-8pm", area: "Austin", src: "listing", ver: "official" },
+  { id: "carenow-10625-w-parmer-ln-austin", name: "CareNow", address: "10625 W Parmer Lane, Suite D 400, Austin, TX 78717", phone: "512-733-9400", hours: "Mon-Thu 8am-8pm, Fri 8am-7pm, Sat 8am-5pm, Sun 8am-8pm", area: "Austin", src: "listing", ver: "official" },
+  { id: "carenow-11521-ranch-rd-620-n-austin", name: "CareNow", address: "11521 N Ranch Road 620, Austin, TX 78726", phone: "512-402-6830", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing", ver: "official" },
+  { id: "carenow-12415-n-interstate-35-frontage-rd-austin", name: "CareNow", address: "12415 N I-35, Austin, TX 78753", phone: "737-205-1270", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing", ver: "official" },
+  { id: "carenow-1920-e-riverside-dr-austin", name: "CareNow", address: "1920 E Riverside Dr, Suite A110, Austin, TX 78741", phone: "737-313-6840", hours: "", area: "Austin", src: "listing", ver: "official" },
+  { id: "carenow-208-w-ben-white-blvd-austin", name: "CareNow", address: "208 W Ben White Blvd, Austin, TX 78704", phone: "512-861-8060", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing", ver: "official" },
+  { id: "carenow-2303-ranch-rd-620-s-austin", name: "CareNow", address: "2303 Ranch Rd 620 S, Suite 210, Lakeway, TX 78734", phone: "737-207-3230", hours: "", area: "Austin", src: "listing", ver: "official" },
+  { id: "carenow-3906-n-lamar-blvd-austin", name: "CareNow", address: "3906 N Lamar Blvd, Suite 100, Austin, TX 78756", phone: "512-861-8040", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing", ver: "official" },
+  { id: "carenow-5033-w-us-hwy-290-service-rd-austin", name: "CareNow", address: "5033 W Highway 290, Building E, Austin, TX 78735", phone: "512-265-8980", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "Austin", src: "listing", ver: "official" },
+  { id: "carenow-517-s-lamar-blvd-austin", name: "CareNow", address: "517 S Lamar Blvd, Suite B, Austin, TX 78704", phone: "512-861-8055", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing", ver: "official" },
+  { id: "carenow-7212-burnet-rd-austin", name: "CareNow", address: "7212 Burnet Rd, Austin, TX 78757", phone: "512-867-6299", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Austin", src: "listing", ver: "official" },
+  { id: "concentra-10001-s-i-35-frontage-rd-austin", name: "Concentra", address: "10001 S I-35 Frontage Rd, Austin, TX 78747", phone: "(512) 440-0555", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Austin", src: "listing", ver: "directory" },
+  { id: "concentra-13831-us-183-hwy-austin", name: "Concentra", address: "13831 US-183 Hwy, Austin, TX 78750", phone: "(512) 250-0424", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Austin", src: "listing", ver: "directory" },
+  { id: "concentra-2000-w-anderson-ln-austin", name: "Concentra", address: "2000 W. Anderson Lane, Austin, TX 78757", phone: "512.459.4367", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Austin", src: "listing", ver: "official" },
+  { id: "concentra-2171-woodward-st-austin", name: "Concentra", address: "2171 Woodward St., Austin, TX 78744", phone: "", hours: "Mon-Fri 8am-6pm, Sat-Sun Closed", area: "Austin", src: "listing", ver: "official" },
+  { id: "concentra-3801-s-lamar-blvd-austin", name: "Concentra", address: "3801 South Lamar Blvd, Bldg A, Austin, TX 78704", phone: "(512) 447-9661", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Austin", src: "listing", ver: "directory" },
+  { id: "concentra-9333-research-blvd-austin", name: "Concentra", address: "9333 Research Blvd., Suite 400, Austin, TX 78759", phone: "512.467.7232", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Austin", src: "listing", ver: "official" },
+  { id: "matagorda-regional-medical-center-104-7th-st-bay-city", name: "Matagorda Regional Medical Center", address: "104 Seventh Street, Bay City, TX 77414", phone: "(979) 245-6383", hours: "Mon-Fri 8am-7pm, Sat 8am-6pm, Sun Closed", area: "Bay City", src: "spec", ver: "official" },
+  { id: "afc-6040-garth-rd-ste-10-baytown", name: "AFC", address: "6040 Garth Rd, Suite 10, Baytown, TX 77521", phone: "(281) 503-9000", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-5pm", area: "Baytown", src: "spec", ver: "official" },
+  { id: "nextlevel-7710-garth-rd-ste-a-baytown", name: "NextLevel", address: "7710 Garth Rd, Baytown, TX 77520", phone: "(346) 749-6154", hours: "Mon-Sun 9am-9pm", area: "Baytown", src: "spec", ver: "official" },
+  { id: "carenow-2114-boca-chica-blvd-brownsville", name: "CareNow", address: "2114 Boca Chica Blvd, Brownsville, TX 78521", phone: "956-866-8860", hours: "", area: "Brownsville", src: "listing", ver: "official" },
+  { id: "carenow-1567-main-st-buda", name: "CareNow", address: "1567 Main St, Suite 100, Buda, TX 78610", phone: "512-351-4405", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Buda", src: "listing", ver: "official" },
+  { id: "carenow-1501-sw-wilshire-blvd-burleson", name: "CareNow", address: "1501 SW Wilshire Blvd, Burleson, TX 76028", phone: "817-295-9400", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Burleson", src: "listing", ver: "official" },
+  { id: "carenow-1017-w-hebron-pkwy-carrollton", name: "CareNow", address: "1017 W Hebron Pkwy, Carrollton, TX 75010", phone: "972-939-9495", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Carrollton", src: "listing", ver: "official" },
+  { id: "concentra-1345-valwood-pkwy-carrollton", name: "Concentra", address: "1345 Valwood Pkwy, Suite 306, Carrollton, TX 75006", phone: "972.484.6435", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Carrollton", src: "listing", ver: "official" },
+  { id: "carenow-345-n-hwy-67-cedar-hill", name: "CareNow", address: "345 N Highway 67, Cedar Hill, TX 75104", phone: "972-956-5300", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Cedar Hill", src: "listing", ver: "official" },
+  { id: "carenow-5001-183a-cedar-park", name: "CareNow", address: "5001 TX 183A Toll Rd, Suite R100, Cedar Park, TX 78613", phone: "512-595-7000", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Cedar Park", src: "listing", ver: "official" },
+  { id: "carenow-1150-w-dallas-st-conroe", name: "CareNow", address: "1150 W Dallas St, Conroe, TX 77301", phone: "713-955-4510", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Conroe", src: "listing", ver: "official" },
+  { id: "carenow-645-tx-121-coppell", name: "CareNow", address: "645 TX-121, Coppell, TX 75019", phone: "", hours: "Mon 8am-5pm, Tue-Sat 8am-10pm, Sun 8am-8pm", area: "Coppell", src: "listing", ver: "directory" },
+  { id: "concentra-4025-s-padre-island-dr-corpus-christi", name: "Concentra", address: "4025 S Padre Island Dr, Corpus Christi, TX 78411", phone: "361.852.8255", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Corpus Christi", src: "listing", ver: "official" },
+  { id: "carenow-9110-barker-cypress-rd-cypress", name: "CareNow", address: "9110 Barker Cypress Rd, Cypress, TX 77433", phone: "281-746-4944", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Cypress", src: "listing", ver: "official" },
+  { id: "carenow-12801-midway-rd-dallas", name: "CareNow", address: "12801 Midway Rd, Suite 503, Dallas, TX 75244", phone: "972-243-3304", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing", ver: "official" },
+  { id: "carenow-14856-preston-rd-dallas", name: "CareNow", address: "14856 Preston Rd, Suite 100, Dallas, TX 75254", phone: "972-387-8900", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing", ver: "official" },
+  { id: "carenow-2221-abrams-rd-dallas", name: "CareNow", address: "2221 Abrams Rd, Dallas, TX 75214", phone: "972-674-8510", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing", ver: "official" },
+  { id: "carenow-2404-mckinney-ave-dallas", name: "CareNow", address: "2404 McKinney Ave, Dallas, TX 75201", phone: "214-721-0630", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing", ver: "official" },
+  { id: "carenow-39769-i-20-dallas", name: "CareNow", address: "39769 I-20, Dallas, TX 75237", phone: "972-780-0802", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing", ver: "official" },
+  { id: "carenow-4501-lemmon-ave-dallas", name: "CareNow", address: "4501 Lemmon Ave, Dallas, TX 75219", phone: "469-672-4238", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing", ver: "official" },
+  { id: "carenow-4617-n-central-expy-dallas", name: "CareNow", address: "4617 N Central Expy, Dallas, TX 75205", phone: "", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing", ver: "directory" },
+  { id: "carenow-4844-greenville-ave-dallas", name: "CareNow", address: "4844 Greenville Ave, Dallas, TX 75206", phone: "214-295-9410", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing", ver: "official" },
+  { id: "carenow-9323-lyndon-b-johnson-fwy-dallas", name: "CareNow", address: "9323 LBJ Fwy, Dallas, TX 75243", phone: "214-570-3003", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Dallas", src: "listing", ver: "official" },
+  { id: "concentra-1450-empire-central-dr-dallas", name: "Concentra", address: "1450 Empire Central Dr, Dallas, TX 75247", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Dallas", src: "listing", ver: "directory" },
+  { id: "concentra-2920-n-stemmons-fwy-dallas", name: "Concentra", address: "2920 N. Stemmons Fwy., Dallas, TX 75247", phone: "214-630-2331", hours: "Mon-Fri 8am-7pm, Sat 9am-5pm, Sun Closed", area: "Dallas", src: "listing", ver: "official" },
+  { id: "concentra-5520-s-westmoreland-rd-dallas", name: "Concentra", address: "5520 Westmoreland, Suite 200, Dallas, TX 75237", phone: "214.467.8210", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Dallas", src: "listing", ver: "official" },
+  { id: "concentra-5601-greenville-ave-dallas", name: "Concentra", address: "5601 Greenville Ave., Dallas, TX 75206", phone: "214.821.6007", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Dallas", src: "listing", ver: "official" },
+  { id: "carenow-9055-spencer-hwy-deer-park", name: "CareNow", address: "9055 Spencer Highway, Deer Park, TX 77536", phone: "346-954-6270", hours: "", area: "Deer Park", src: "listing", ver: "official" },
+  { id: "concentra-125-e-8th-st-deer-park", name: "Concentra", address: "125 E 8th Street, Deer Park, TX 77536", phone: "281-930-8555", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Deer Park", src: "listing", ver: "official" },
+  { id: "carenow-2520-w-university-dr-denton", name: "CareNow", address: "2310 W University Dr, Suite 1500, Denton, TX 76201", phone: "940-220-5901", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "Denton", src: "listing", ver: "official" },
+  { id: "carenow-3751-i-35e-denton", name: "CareNow", address: "3751 S I-35E, Denton, TX 76210", phone: "940-383-2700", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Denton", src: "listing", ver: "official" },
+  { id: "concentra-2215-s-loop-288-denton", name: "Concentra", address: "725 S I-35 E, Suite 188, Denton, TX 76205", phone: "940.222.3800", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Denton", src: "listing", ver: "official" },
+  { id: "carenow-3150-gulf-fwy-s-dickinson", name: "CareNow", address: "3150 Gulf Fwy S, Dickinson, TX 77539", phone: "281-534-0001", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Dickinson", src: "spec", ver: "directory" },
+  { id: "carenow-293-e-trenton-rd-edinburg", name: "CareNow", address: "293 E Trenton Rd, Suite 20, Edinburg, TX 78539", phone: "956-348-0140", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Edinburg", src: "listing", ver: "official" },
+  { id: "carenow-7845-n-mesa-st-el-paso", name: "CareNow", address: "7845 N Mesa St, Suite A, El Paso, TX 79932", phone: "(915) 206-4690", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "El Paso", src: "listing", ver: "official" },
+  { id: "carenow-9640-montwood-dr-el-paso", name: "CareNow", address: "9640 Montwood Drive, El Paso, TX 79925", phone: "915-401-8100", hours: "", area: "El Paso", src: "listing", ver: "official" },
+  { id: "concentra-1610-n-zaragoza-rd-el-paso", name: "Concentra", address: "1610 N. Zaragosa Road, Suite D1, El Paso, TX 79936", phone: "915.593.1862", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "El Paso", src: "listing", ver: "official" },
+  { id: "concentra-6320-gtwy-blvd-e-el-paso", name: "Concentra", address: "6320 Gtwy Blvd E, El Paso, TX 79905", phone: "(915) 772-2111", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "El Paso", src: "listing", ver: "directory" },
+  { id: "carenow-610-e-us-hwy-80-forney", name: "CareNow", address: "610 East US Hwy 80, Forney, TX 75126", phone: "972-552-6920", hours: "", area: "Forney", src: "listing", ver: "official" },
+  { id: "carenow-2700-horne-st-fort-worth", name: "CareNow", address: "2700 Horne St, Suite 100, Fort Worth, TX 76107", phone: "817-570-7995", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing", ver: "official" },
+  { id: "carenow-2900-renaissance-sq-fort-worth", name: "CareNow", address: "2900 Renaissance Square, Suite 100, Fort Worth, TX 76105", phone: "682-399-6370", hours: "", area: "Fort Worth", src: "listing", ver: "official" },
+  { id: "carenow-3520-nw-centre-dr-fort-worth", name: "CareNow", address: "3520 NW Centre Dr, Fort Worth, TX 76135", phone: "817-375-2100", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing", ver: "official" },
+  { id: "carenow-4524-w-bailey-boswell-rd-fort-worth", name: "CareNow", address: "4524 W Bailey Boswell Rd, Fort Worth, TX 76179", phone: "817-720-9685", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing", ver: "official" },
+  { id: "carenow-454-jim-wright-fwy-fort-worth", name: "CareNow", address: "454 W Jim Wright Freeway, White Settlement, TX 76108", phone: "682-703-4505", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing", ver: "official" },
+  { id: "carenow-5653-mcpherson-blvd-fort-worth", name: "CareNow", address: "5653 McPherson Blvd, Fort Worth, TX 76036", phone: "682-354-3100", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing", ver: "official" },
+  { id: "carenow-7232-north-fwy-fort-worth", name: "CareNow", address: "7232 North Freeway, Fort Worth, TX 76137", phone: "817-232-2100", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing", ver: "official" },
+  { id: "carenow-7400-mc-cart-ave-fort-worth", name: "CareNow", address: "7400 McCart Ave, Fort Worth, TX 76133", phone: "817-294-1651", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing", ver: "official" },
+  { id: "carenow-8450-east-fwy-fort-worth", name: "CareNow", address: "8450 East Freeway, Fort Worth, TX 76120", phone: "817-459-2005", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing", ver: "official" },
+  { id: "carenow-8901-n-fwy-fort-worth", name: "CareNow", address: "8901 North Freeway, Suite 111, Fort Worth, TX 76177", phone: "469-778-5228", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Fort Worth", src: "listing", ver: "official" },
+  { id: "concentra-2500-west-fwy-fort-worth", name: "Concentra", address: "2500 West Freeway (I30), Suite 100, Fort Worth, TX 76102", phone: "817-882-8700", hours: "Mon-Fri 8am-5pm, Sat 8am-4pm, Sun Closed", area: "Fort Worth", src: "listing", ver: "official" },
+  { id: "concentra-4060-sandshell-dr-fort-worth", name: "Concentra", address: "4060 Sandshell Dr, Fort Worth, TX 76137", phone: "817-306-9777", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Fort Worth", src: "listing", ver: "official" },
+  { id: "concentra-1002-abc-ave-ste-600-freeport", name: "Concentra", address: "1002 Abc Ave, Suite 600, Freeport, TX 77541", phone: "979-233-6571", hours: "Mon-Fri 7:30am-5pm, Sat-Sun Closed", area: "Freeport", src: "spec", ver: "directory" },
+  { id: "carenow-1729-s-friendswood-dr-friendswood", name: "CareNow", address: "1729 S Friendswood Dr, Friendswood, TX 77546", phone: "281-402-1930", hours: "Mon-Sun 8am-8pm", area: "Friendswood", src: "spec", ver: "official" },
+  { id: "carenow-301-w-main-st-frisco", name: "CareNow", address: "301 W Main St, Frisco, TX 75036", phone: "972-335-0030", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Frisco", src: "listing", ver: "official" },
+  { id: "carenow-5644-preston-rd-frisco", name: "CareNow", address: "5644 Preston Rd, Frisco, TX 75034", phone: "972-529-4545", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Frisco", src: "listing", ver: "official" },
+  { id: "concentra-8756-teel-pkwy-frisco", name: "Concentra", address: "8756 Teel Parkway, Suite 350, Frisco, TX 75034", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Frisco", src: "listing", ver: "official" },
+  { id: "affinity-2808-61st-st-ste-200-galveston", name: "Affinity", address: "2808 61st Street, Galveston, TX 77551", phone: "281-886-8964", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Galveston", src: "spec", ver: "official" },
+  { id: "west-isle-2027-61st-st-galveston", name: "West Isle", address: "2027 61st Street, Galveston, TX 77551", phone: "(409) 744-9800", hours: "Mon-Sun 8am-10pm", area: "Galveston", src: "spec", ver: "official" },
+  { id: "carenow-5106-n-president-george-bush-hwy-garland", name: "CareNow", address: "5106 N George Bush Hwy, Garland, TX 75040", phone: "972-530-1900", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Garland", src: "listing", ver: "official" },
+  { id: "carenow-565-w-interstate-30-garland", name: "CareNow", address: "565 W I-30 W, Garland, TX 75043", phone: "972-303-3030", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Garland", src: "listing", ver: "official" },
+  { id: "concentra-1621-s-jupiter-rd-garland", name: "Concentra", address: "1621 S Jupiter Rd, Suite 101, Garland, TX 75042", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Garland", src: "listing", ver: "official" },
+  { id: "carenow-1205-s-i-35-frontage-rd-georgetown", name: "CareNow", address: "1205 S I-35, Georgetown, TX 78626", phone: "512-942-2535", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-7pm", area: "Georgetown", src: "listing", ver: "official" },
+  { id: "carenow-1205-south-i-35-georgetown", name: "CareNow", address: "1205 S I-35, Georgetown, TX 78626", phone: "512-942-2535", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Georgetown", src: "listing", ver: "official" },
+  { id: "carenow-2520-i-20-frontage-rd-grand-prairie", name: "CareNow", address: "2520 W Interstate 20, Grand Prairie, TX 75052", phone: "972-264-5858", hours: "Mon-Fri 8am-10pm, Sat 8am-8pm, Sun 8am-5pm", area: "Grand Prairie", src: "listing", ver: "official" },
+  { id: "carenow-5301-william-d-tate-ave-grapevine", name: "CareNow", address: "5301 William D Tate Ave, Suite 100, Grapevine, TX 76051", phone: "817-251-2101", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Grapevine", src: "listing", ver: "official" },
+  { id: "concentra-2900-denton-hwy-haltom-city", name: "Concentra", address: "2900 Denton Hwy, Haltom City, TX 76117", phone: "", hours: "Mon Closed, Tue-Sat 8am-5pm, Sun 9am-4pm", area: "Haltom City", src: "listing", ver: "directory" },
+  { id: "afc-107-yale-st-ste-200-houston", name: "AFC", address: "107 Yale Street, Suite 200, Houston, TX 77007", phone: "(713) 861-6060", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-5pm", area: "Houston", src: "spec", ver: "official" },
+  { id: "afc-2402-bay-area-blvd-ste-m-houston", name: "AFC", address: "2402 Bay Area Boulevard, Suite M, Houston, TX 77058", phone: "(832) 650-0604", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-5pm", area: "Houston", src: "spec", ver: "official" },
+  { id: "afc-5568-weslayan-st-houston", name: "AFC", address: "5568 Weslayan St., Houston, TX 77005", phone: "(713) 666-7050", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-5pm", area: "Houston", src: "spec", ver: "official" },
+  { id: "carenow-102-w-11th-st-houston", name: "CareNow", address: "102 W 11th St, Houston, TX 77008", phone: "832-539-4707", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Houston", src: "spec", ver: "official" },
+  { id: "carenow-14045-memorial-dr-houston", name: "CareNow", address: "14045 Memorial Dr, Suite 400, Houston, TX 77079", phone: "832-548-4410", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Houston", src: "spec", ver: "official" },
+  { id: "carenow-1917-w-gray-st-houston", name: "CareNow", address: "1917 W Gray St, Houston, TX 77019", phone: "832-260-0650", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Houston", src: "spec", ver: "official" },
+  { id: "carenow-2707-milam-st-houston", name: "CareNow", address: "2707 Milam St, Houston, TX 77006", phone: "832-632-7135", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Houston", src: "spec", ver: "official" },
+  { id: "carenow-2727-dunvale-rd-houston", name: "CareNow", address: "2727 Dunvale Rd, Houston, TX 77063", phone: "713-830-2500", hours: "Mon-Fri 9am-9pm, Sat 9am-7pm, Sun 10am-6pm", area: "Houston", src: "listing", ver: "official" },
+  { id: "carenow-7107-s-texas-6-houston", name: "CareNow", address: "7107 Highway 6 South, Suite 100, Houston, TX 77083", phone: "346-207-9730", hours: "", area: "Houston", src: "listing", ver: "official" },
+  { id: "carenow-8470-hwy-6-n-houston", name: "CareNow", address: "8470 Hwy 6 N, Houston, TX 77095", phone: "+1-346-205-8850", hours: "", area: "Houston", src: "listing", ver: "directory" },
+  { id: "concentra-1000-n-post-oak-rd-houston", name: "Concentra", address: "1000 N Post Oak Rd Bldg. G #100, Houston, TX 77055", phone: "713.686.4868", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing", ver: "official" },
+  { id: "concentra-10909-east-fwy-houston", name: "Concentra", address: "10909 East Fwy, Houston, TX 77029", phone: "(713) 675-4777", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing", ver: "directory" },
+  { id: "concentra-12345-katy-fwy-houston", name: "Concentra", address: "12345 Katy Fwy, Houston, TX 77079", phone: "281.679.5600", hours: "Mon-Fri 8am-5pm, Sat 9am-4pm, Sun Closed", area: "Houston", src: "spec", ver: "official" },
+  { id: "concentra-124-b-farm-to-market-1960-rd-e-houston", name: "Concentra", address: "124 FM 1960 Rd, Suite A, Houston, TX 77073", phone: "281.260.0087", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing", ver: "official" },
+  { id: "concentra-1414-s-loop-w-houston", name: "Concentra", address: "1414 S. Loop West, Suite 200, Houston, TX 77054", phone: "713-797-6106", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing", ver: "official" },
+  { id: "concentra-17410-northwest-fwy-houston", name: "Concentra", address: "17410 Northwest Fwy, Houston, TX 77040", phone: "(713) 466-0044", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing", ver: "directory" },
+  { id: "concentra-2004-leeland-st-houston", name: "Concentra", address: "3895 Gulf Fwy, Suite A, Houston, TX 77003", phone: "713.223.0838", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing", ver: "official" },
+  { id: "concentra-401-greens-rd-houston", name: "Concentra", address: "401 Greens Rd, Houston, TX 77060", phone: "+1-281-447-2255", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing", ver: "directory" },
+  { id: "concentra-6360-w-sam-houston-pkwy-n-houston", name: "Concentra", address: "6360 W Sam Houston Pkwy N, Suite 200, Houston, TX 77041", phone: "713.280.0400", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing", ver: "official" },
+  { id: "concentra-6545-southwest-fwy-houston", name: "Concentra", address: "6545 Southwest Fwy, Houston, TX 77074", phone: "713-995-6998 / 713-995-6580", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "spec", ver: "directory" },
+  { id: "concentra-8508-gulf-fwy-ste-f-houston", name: "Concentra", address: "8505 Gulf Fwy, Suite F, Houston, TX 77017", phone: "713.944.4442", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "spec", ver: "official" },
+  { id: "concentra-8799-n-loop-e-fwy-houston", name: "Concentra", address: "8799 North Loop East Freeway, Suite 110, Houston, TX 77029", phone: "(713) 674-1114", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "listing", ver: "directory" },
+  { id: "concentra-9200-hempstead-hwy-ste-137-houston", name: "Concentra", address: "9200 Hempstead Highway, Suite 137, Houston, TX 77008", phone: "713.880.9800", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Houston", src: "spec", ver: "official" },
+  { id: "gohealth-11700-westheimer-rd-ste-j-houston", name: "GoHealth", address: "11700 Westheimer Rd, Suite J, Houston, TX 77077", phone: "346-575-0067", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Houston", src: "spec", ver: "directory" },
+  { id: "gohealth-12740-memorial-dr-ste-100-houston", name: "GoHealth", address: "12740 Memorial Drive, Suite 100, Houston, TX 77024", phone: "(346) 326-9990", hours: "Mon-Sun 8am-Midnight", area: "Houston", src: "spec", ver: "official" },
+  { id: "nextcare-1202-e-nasa-parkway-houston", name: "NextCare", address: "1202 E NASA Pkwy, Houston, TX 77058", phone: "(281) 335-0606", hours: "Mon-Sun 9am-9pm", area: "Houston", src: "spec", ver: "official" },
+  { id: "nextlevel-4936-beechnut-houston", name: "NextLevel", address: "4936 Beechnut St, Houston, TX 77096", phone: "(346) 749-6167", hours: "Mon-Sun 9am-9pm", area: "Houston", src: "spec", ver: "official" },
+  { id: "nextlevel-5749-san-felipe-houston", name: "NextLevel", address: "5749 San Felipe St, Houston, TX 77057", phone: "(346) 749-6170", hours: "Mon-Sun 9am-9pm", area: "Houston", src: "spec", ver: "official" },
+  { id: "carenow-7072-farm-to-market-1960-rd-e-humble", name: "CareNow", address: "7072 FM 1960 Rd E, Suite 7, Humble, TX 77346", phone: "281-397-5258", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Humble", src: "listing", ver: "official" },
+  { id: "carenow-779-grapevine-hwy-hurst", name: "CareNow", address: "779 Grapevine Hwy, Hurst, TX 76054", phone: "817-428-7300", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Hurst", src: "listing", ver: "official" },
+  { id: "carenow-4810-gattis-school-rd-hutto", name: "CareNow", address: "4810 Gattis School Rd, Suite 100, Hutto, TX 78634", phone: "512-312-7230", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Hutto", src: "listing", ver: "official" },
+  { id: "carenow-2675-n-belt-line-rd-irving", name: "CareNow", address: "2675 N Belt Line Road, Irving, TX 75062", phone: "469-299-5445", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Irving", src: "listing", ver: "official" },
+  { id: "carenow-2851-w-lyndon-b-johnson-fwy-irving", name: "CareNow", address: "2851 W. Interstate Hwy. 635, Irving, TX 75063", phone: "(214) 496-0820", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Irving", src: "listing", ver: "official" },
+  { id: "carenow-7400-n-macarthur-blvd-irving", name: "CareNow", address: "7400 N MacArthur Blvd, Irving, TX 75063", phone: "469-804-9295", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Irving", src: "listing", ver: "official" },
+  { id: "concentra-2233-e-grauwyler-rd-irving", name: "Concentra", address: "2233 E Grauwyler Rd, Irving, TX 75061", phone: "", hours: "", area: "Irving", src: "listing", ver: "directory" },
+  { id: "concentra-5910-n-macarthur-blvd-irving", name: "Concentra", address: "5910 N. MacArthur Blvd., Suite 133, Irving, TX 75039", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Irving", src: "listing", ver: "official" },
+  { id: "carenow-6501-s-fry-rd-ste-1000-katy", name: "CareNow", address: "6501 S Fry Rd, Suite 1000, Houston, TX 77494", phone: "832-260-0670", hours: "Mon-Sun 8am-8pm", area: "Katy", src: "spec", ver: "official" },
+  { id: "concentra-25805-katy-fwy-ste-600-katy", name: "Concentra", address: "25805 Katy Freeway, Suite 600, Katy, TX 77494", phone: "346-266-0756", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Katy", src: "spec", ver: "official" },
+  { id: "nextlevel-10625-spring-green-blvd-ste-200-katy", name: "NextLevel", address: "10625 Spring Green Blvd, Katy, TX 77494", phone: "(281) 720-3248", hours: "Mon-Sun 9am-9pm", area: "Katy", src: "spec", ver: "official" },
+  { id: "nextlevel-1420-katy-fort-bend-rd-ste-105-katy", name: "NextLevel", address: "1420 Katy Fort Bend Rd, Katy, TX 77493", phone: "(281) 699-5241", hours: "Mon-Sun 9am-9pm", area: "Katy", src: "spec", ver: "official" },
+  { id: "nextlevel-21700-kingsland-blvd-ste-104-katy", name: "NextLevel", address: "21700 Kingsland Blvd, Katy, TX 77450", phone: "(281) 699-0292", hours: "Mon-Sun 9am-9pm", area: "Katy", src: "spec", ver: "official" },
+  { id: "nextlevel-9722-gaston-rd-ste-190-katy", name: "NextLevel", address: "9722 Gaston Rd, Katy, TX 77494", phone: "(281) 343-3062", hours: "Mon-Sun 9am-9pm", area: "Katy", src: "spec", ver: "official" },
+  { id: "carenow-104-s-main-st-keller", name: "CareNow", address: "104 S Main St, Keller, TX 76248", phone: "214-295-9385", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Keller", src: "listing", ver: "official" },
+  { id: "carenow-720-s-main-st-keller", name: "CareNow", address: "720 S Main St, Keller, TX 76248", phone: "817-431-2800", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Keller", src: "listing", ver: "official" },
+  { id: "carenow-300-northpark-dr-kingwood", name: "CareNow", address: "300 Northpark Dr, Kingwood, TX 77339", phone: "281-310-8445", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Kingwood", src: "listing", ver: "official" },
+  { id: "afc-8850-spencer-hwy-ste-105-la-porte", name: "AFC", address: "8850 Spencer Highway, Suite 100, La Porte, TX 77571", phone: "(281) 946-9980", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-5pm", area: "La Porte", src: "spec", ver: "official" },
+  { id: "concentra-1309-west-fairmont-pkwy-ste-x-la-porte", name: "Concentra", address: "1309 West Fairmont Parkway, Suite S, LaPorte, TX 77571", phone: "281-470-1542", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "La Porte", src: "spec", ver: "official" },
+  { id: "nextlevel-101-winding-way-ste-a-lake-jackson", name: "NextLevel", address: "101 Winding Way St, Lake Jackson, TX 77566", phone: "(979) 202-8053", hours: "Mon-Sun 9am-9pm", area: "Lake Jackson", src: "spec", ver: "official" },
+  { id: "nextlevel-2560-e-league-city-pkwy-ste-b-league-city", name: "NextLevel", address: "2560 E League City Pkwy, League City, TX 77573", phone: "(281) 326-9207", hours: "Mon-Sun 9am-9pm", area: "League City", src: "spec", ver: "official" },
+  { id: "carenow-144-s-brook-dr-leander", name: "CareNow", address: "144 South Brook Drive, Suite 180, Leander, TX 78641", phone: "737-757-3400", hours: "", area: "Leander", src: "listing", ver: "official" },
+  { id: "carenow-1559-w-main-st-lewisville", name: "CareNow", address: "1559 W Main St, Lewisville, TX 75067", phone: "972-436-0333", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Lewisville", src: "listing", ver: "official" },
+  { id: "concentra-2403-s-stemmons-fwy-lewisville", name: "Concentra", address: "2403 S. Stemmons Fwy, Suite 103, Lewisville, TX 75067", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Lewisville", src: "listing", ver: "official" },
+  { id: "concentra-160-slaton-rd-lubbock", name: "Concentra", address: "160 Slaton Rd, Lubbock, TX 79404", phone: "", hours: "", area: "Lubbock", src: "listing", ver: "directory" },
+  { id: "concentra-6048-marsha-sharp-fwy-w-lubbock", name: "Concentra", address: "6048 Marsha Sharp Fwy W, Lubbock, TX 79424", phone: "(806) 745-2200", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Lubbock", src: "listing", ver: "directory" },
+  { id: "carenow-10422-research-forest-dr-magnolia", name: "CareNow", address: "10422 Research Forest Dr, Magnolia, TX 77354", phone: "832-702-7699", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Magnolia", src: "listing", ver: "official" },
+  { id: "carenow-1501-u-s-287-frontage-rd-mansfield", name: "CareNow", address: "1501 Highway 287 N, Mansfield, TX 76063", phone: "817-453-8080", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Mansfield", src: "listing", ver: "official" },
+  { id: "carenow-2901-nolana-ave-mcallen", name: "CareNow", address: "2901 Nolana Ave, Suite 110, McAllen, TX 78504", phone: "956-558-6090", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "McAllen", src: "listing", ver: "official" },
+  { id: "carenow-5252-w-university-dr-mckinney", name: "CareNow", address: "5252 W University Dr, McKinney, TX 75071", phone: "", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "McKinney", src: "listing", ver: "directory" },
+  { id: "carenow-6200-eldorado-pkwy-mckinney", name: "CareNow", address: "6200 Eldorado Pkwy, McKinney, TX 75070", phone: "469-617-4130", hours: "Mon-Fri 8am-8pm, Sat 8am-5pm, Sun 8am-8pm", area: "McKinney", src: "listing", ver: "official" },
+  { id: "concentra-4928-samuell-blvd-mesquite", name: "Concentra", address: "4928 Samuell Blvd., Mesquite, TX 75149", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Mesquite", src: "listing", ver: "official" },
+  { id: "gohealth-8035-hwy-6-ste-170-missouri-city", name: "GoHealth", address: "8035 Hwy 6, Suite 170, Missouri City, TX 77459", phone: "346-371-4482", hours: "Mon-Fri 8am-8pm, Sat-Sun 9am-5pm", area: "Missouri City", src: "spec", ver: "official" },
+  { id: "nextlevel-8720-hwy-6-ste-400-missouri-city", name: "NextLevel", address: "8720 Hwy 6, Missouri City, TX 77459", phone: "(832) 307-1922", hours: "Mon-Sun 9am-9pm", area: "Missouri City", src: "spec", ver: "official" },
+  { id: "carenow-20042-eva-st-montgomery", name: "CareNow", address: "20042 Eva St, Suite 120, Montgomery, TX 77356", phone: "936-207-2525", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Montgomery", src: "listing", ver: "official" },
+  { id: "carenow-11845-grand-pkwy-new-caney", name: "CareNow", address: "11845 N Grand Parkway E, New Caney, TX 77357", phone: "832-432-6150", hours: "", area: "New Caney", src: "listing", ver: "official" },
+  { id: "carenow-6401-ne-loop-820-north-richland-hills", name: "CareNow", address: "6401 NE Loop 820, Suite 200, North Richland Hills, TX 76180", phone: "817-893-1630", hours: "", area: "North Richland Hills", src: "listing", ver: "official" },
+  { id: "carenow-8541-davis-blvd-north-richland-hills", name: "CareNow", address: "8541 Davis Blvd, North Richland Hills, TX 76182", phone: "817-893-1940", hours: "", area: "North Richland Hills", src: "listing", ver: "official" },
+  { id: "carenow-5233-fairmont-pkwy-ste-1-pasadena", name: "CareNow", address: "5233 Fairmont Pkwy, Suite 1, Pasadena, TX 77505", phone: "713-568-0240", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Pasadena", src: "spec", ver: "official" },
+  { id: "nextcare-6825-spencer-hwy-pasadena", name: "NextCare", address: "6825 Spencer Hwy, Pasadena, TX 77505", phone: "(281) 741-0070", hours: "Mon-Sun 9am-9pm", area: "Pasadena", src: "spec", ver: "official" },
+  { id: "carenow-11826-broadway-st-pearland", name: "CareNow", address: "11826 Broadway Street, Pearland, TX 77584", phone: "346-422-2400", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Pearland", src: "spec", ver: "official" },
+  { id: "carenow-2907-east-broadway-st-pearland", name: "CareNow", address: "2907 East Broadway Street, Pearland, TX 77581", phone: "281-925-1970", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Pearland", src: "spec", ver: "official" },
+  { id: "nextlevel-8325-broadway-st-ste-220-pearland", name: "NextLevel", address: "8325 Broadway St, Pearland, TX 77581", phone: "(832) 849-4414", hours: "Mon-Sun 9am-9pm", area: "Pearland", src: "spec", ver: "official" },
+  { id: "carenow-3821-spring-creek-pkwy-plano", name: "CareNow", address: "3821 W Spring Creek Pkwy, Plano, TX 75023", phone: "972-599-0077", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Plano", src: "listing", ver: "official" },
+  { id: "concentra-1300-n-central-expy-plano", name: "Concentra", address: "1300 N. Central Expressway, Plano, TX 75074", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Plano", src: "listing", ver: "official" },
+  { id: "carenow-4530-w-university-dr-prosper", name: "CareNow", address: "4530 W University Dr, Prosper, TX 75078", phone: "469-607-7504", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Prosper", src: "listing", ver: "official" },
+  { id: "carenow-781-s-preston-rd-prosper", name: "CareNow", address: "781 S Preston Rd, Prosper, TX 75078", phone: "972-529-4520", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Prosper", src: "listing", ver: "official" },
+  { id: "carenow-377-w-campbell-rd-richardson", name: "CareNow", address: "377 W Campbell Rd, Suite 100, Richardson, TX 75080", phone: "469-232-2945", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Richardson", src: "listing", ver: "official" },
+  { id: "afc-18310-w-airport-blvd-ste-100-richmond", name: "AFC", address: "18310 W Airport Blvd, Suite 100, Richmond, TX 77407", phone: "(832) 756-7772", hours: "Mon-Sun 8am-8pm", area: "Richmond", src: "spec", ver: "official" },
+  { id: "afc-3415-fm-762-ste-180-richmond", name: "AFC", address: "3415 FM 762, Richmond, TX 77469", phone: "(281) 699-5680", hours: "Mon-Fri 8am-8pm, Sat-Sun 8am-5pm", area: "Richmond", src: "spec", ver: "official" },
+  { id: "carenow-1530-n-us-hwy-377-roanoke", name: "CareNow", address: "1530 US-377, Roanoke, TX 76262", phone: "682-549-9920", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Roanoke", src: "listing", ver: "official" },
+  { id: "carenow-600-horizon-rd-rockwall", name: "CareNow", address: "600 Horizon Rd, Rockwall, TX 75032", phone: "972-332-5555", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Rockwall", src: "listing", ver: "official" },
+  { id: "nextlevel-4002-fm-762-rd-ste-100-rosenberg", name: "NextLevel", address: "4002 FM 762 Rd, Rosenberg, TX 77469", phone: "(281) 549-0064", hours: "Mon-Sun 9am-9pm", area: "Rosenberg", src: "spec", ver: "official" },
+  { id: "carenow-2800-s-i-35-frontage-rd-round-rock", name: "CareNow", address: "2800 IH 35 South, Suite 400, Round Rock, TX 78681", phone: "(512) 910-8737", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Round Rock", src: "listing", ver: "official" },
+  { id: "concentra-117-louis-henna-blvd-round-rock", name: "Concentra", address: "117-B Louis Henna Blvd., Suite 200, Round Rock, TX 78664", phone: "512.255.9634", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Round Rock", src: "listing", ver: "official" },
+  { id: "carenow-9101-lakeview-pkwy-rowlett", name: "CareNow", address: "2101 Lakeview Pkwy, Suite 300, Rowlett, TX 75088", phone: "972-412-1712", hours: "Mon-Fri 8am-10pm, Sat 8am-8pm, Sun 8am-5pm", area: "Rowlett", src: "listing", ver: "official" },
+  { id: "carenow-10538-potranco-rd-san-antonio", name: "CareNow", address: "10538 Potranco Rd, Building 1, San Antonio, TX 78251", phone: "210-890-2640", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Antonio", src: "listing", ver: "official" },
+  { id: "carenow-17122-bulverde-rd-san-antonio", name: "CareNow", address: "17122 Bulverde Rd, Suite 104, San Antonio, TX 78247", phone: "210-783-0170", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Antonio", src: "listing", ver: "official" },
+  { id: "carenow-5410-broadway-san-antonio", name: "CareNow", address: "5410 Broadway Street, Alamo Heights, TX 78209", phone: "210-998-6677", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Antonio", src: "listing", ver: "official" },
+  { id: "carenow-5755-northwest-loop-410-san-antonio", name: "CareNow", address: "5755 NW Loop 410, Suite 102, San Antonio, TX 78238", phone: "210-963-8445", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Antonio", src: "listing", ver: "official" },
+  { id: "concentra-10200-broadway-san-antonio", name: "Concentra", address: "10200 Broadway Street, Suite 200, San Antonio, TX 78217", phone: "210.654.8787", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing", ver: "official" },
+  { id: "concentra-12651-vance-jackson-rd-san-antonio", name: "Concentra", address: "12651 Vance Jackson, Suite 114, San Antonio, TX 78230", phone: "210.762.3780", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing", ver: "official" },
+  { id: "concentra-12702-toepperwein-rd-san-antonio", name: "Concentra", address: "12702 Toepperwein, Suite 120, San Antonio, TX 78233", phone: "(210) 653-4420", hours: "Mon-Fri 8am-8pm, Sat-Sun 10am-6pm", area: "San Antonio", src: "listing", ver: "directory" },
+  { id: "concentra-3453-i-35-frontage-rd-san-antonio", name: "Concentra", address: "3453 I-35, Suite 110, San Antonio, TX 78219", phone: "210.226.7767", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing", ver: "official" },
+  { id: "concentra-400-e-quincy-st-san-antonio", name: "Concentra", address: "400 E Quincy, San Antonio, TX 78215", phone: "210.472.0211", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing", ver: "official" },
+  { id: "concentra-7555-northwest-loop-410-san-antonio", name: "Concentra", address: "7555 NW Loop 410, Suite 114, San Antonio, TX 78245", phone: "210.520.8070", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "San Antonio", src: "listing", ver: "official" },
+  { id: "carenow-920-w-interstate-hwy-2-san-juan", name: "CareNow", address: "920 W. Interstate HWY 2, Suite E, San Juan, TX 78589", phone: "956-904-4660", hours: "", area: "San Juan", src: "listing", ver: "official" },
+  { id: "carenow-301-n-guadalupe-st-san-marcos", name: "CareNow", address: "301 N Guadalupe St, San Marcos, TX 78666", phone: "", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "San Marcos", src: "listing", ver: "directory" },
+  { id: "carenow-14775-i-35-frontage-rd-schertz", name: "CareNow", address: "14775 I-35 Frontage Rd, Schertz, TX 78154", phone: "", hours: "", area: "Schertz", src: "listing", ver: "directory" },
+  { id: "carenow-2751-e-state-hwy-114-southlake", name: "CareNow", address: "2751 E State Highway 114, Southlake, TX 76092", phone: "817-749-0155", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Southlake", src: "listing", ver: "official" },
+  { id: "carenow-21700-kuykendahl-rd-spring", name: "CareNow", address: "21700 Kuykendahl Road, Spring, TX 77379", phone: "346-416-6860", hours: "", area: "Spring", src: "listing", ver: "official" },
+  { id: "carenow-2540-farm-to-market-2920-spring", name: "CareNow", address: "2540 Farm To Market 2920, Houston, TX 77388", phone: "832-271-5168", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Spring", src: "listing", ver: "official" },
+  { id: "carenow-7306-louetta-rd-spring", name: "CareNow", address: "7306 Louetta Rd, Spring, TX 77379", phone: "832-271-5589", hours: "Mon-Fri 8am-9pm, Sat 8am-8pm, Sun 8am-5pm", area: "Spring", src: "listing", ver: "official" },
+  { id: "concentra-10521-corporate-dr-stafford", name: "Concentra", address: "10521 Corporate Dr., Stafford, TX 77477", phone: "281-277-7997", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Stafford", src: "spec", ver: "official" },
+  { id: "afc-3551-hwy-6-sugar-land", name: "AFC", address: "3551 Highway 6, Sugar Land, TX 77478", phone: "(281) 277-0036", hours: "Mon-Sun 8am-8pm", area: "Sugar Land", src: "spec", ver: "official" },
+  { id: "carenow-1403-hwy-6-sugar-land", name: "CareNow", address: "1403 Highway 6, Sugar Land, TX 77478", phone: "832-260-0640", hours: "Mon-Fri 8am-8pm, Sat 8am-7pm, Sun 8am-5pm", area: "Sugar Land", src: "spec", ver: "official" },
+  { id: "nextlevel-16312-southwest-fwy-sugar-land", name: "NextLevel", address: "16312 Southwest Fwy, Sugar Land, TX 77479", phone: "(346) 749-6169", hours: "Mon-Sun 9am-9pm", area: "Sugar Land", src: "spec", ver: "official" },
+  { id: "carenow-22605-tomball-pkwy-tomball", name: "CareNow", address: "22605 Tomball Parkway, Suite C, Tomball, TX 77375", phone: "832-761-8420", hours: "Mon-Fri 9am-9pm, Sat 9am-7pm, Sun 10am-6pm", area: "Tomball", src: "listing", ver: "official" },
+  { id: "concentra-5040-kinsey-dr-tyler", name: "Concentra", address: "5040 Kinsey Dr, Tyler, TX 75703", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Tyler", src: "listing", ver: "directory" },
+  { id: "concentra-4205-franklin-ave-waco", name: "Concentra", address: "4205 Franklin Ave, Waco, TX 76710", phone: "", hours: "Mon-Fri 8am-5pm, Sat-Sun Closed", area: "Waco", src: "listing", ver: "official" },
+  { id: "carenow-2733-fort-worth-hwy-weatherford", name: "CareNow", address: "2733 Fort Worth Highway, Suite 102, Hudson Oaks, TX 76087", phone: "682-804-6870", hours: "", area: "Weatherford", src: "listing", ver: "official" },
+  { id: "carenow-3080-e-farm-to-market-544-wylie", name: "CareNow", address: "3080 FM 544, Wylie, TX 75098", phone: "972-202-7300", hours: "Mon-Sat 8am-8pm, Sun 8am-5pm", area: "Wylie", src: "listing", ver: "official" },
 ];
 
 const STORE_NEAREST = {
@@ -1042,6 +1044,7 @@ const BRAND_OPTIONS = [
 // ------------------------------------------------------------
 // Recommendation settings (change here if the rules change)
 // ------------------------------------------------------------
+const DATA_CHECKED = 'November 3, 2026';   // when the site list was last checked against each brand's official web pages
 const TEST_BUFFER_MIN = 60;   // a site is only "recommended" if it is still open this many minutes after the manager would arrive
 const FAR_MILES = 40;         // warn when the closest listed site is farther than this
 const MIN_PER_MILE = 2.5;     // rough driving pace used to estimate arrival time (about 24 mph)
@@ -1202,6 +1205,13 @@ function mapsDir(x) { return 'https://www.google.com/maps/dir/?api=1&destination
 function mapsFind(x) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(x.name + ' ' + x.address); }
 function mapsNear(brand, where) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(brand + ' near ' + where); }
 const LNK = 'target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"';
+// Phone numbers become tap-to-call links on a phone. A site can have two numbers separated by " / ".
+function telLinks(p) {
+  return String(p || '').split(/\s*\/\s*/).filter(Boolean).map(n => {
+    const d = n.replace(/[^\d+]/g, '');
+    return d.length >= 10 ? '<a href="tel:' + esc(d) + '" onclick="event.stopPropagation()">' + esc(n) + '</a>' : esc(n);
+  }).join(' / ');
+}
 
 // ------------------------------------------------------------
 // Site selection
@@ -1279,7 +1289,8 @@ function siteSelectorHTML(label) {
 
   let html = `<div class="field"><label>Your store (shows the closest sites first)</label>
       <input type="text" id="f-siteStore" list="storeList" value="${esc(storeVal)}" placeholder="Type a store number or name" onchange="onSiteChange()" autocomplete="off">
-      ${storeDatalistHTML()}</div>`;
+      ${storeDatalistHTML()}</div>
+    <div class="verify-banner"><strong>Confirm before you send anyone.</strong> Hours, addresses and phone numbers were preloaded from public sources (last checked ${DATA_CHECKED}) and can change, especially on holidays. Call the facility and confirm it is open and will accept your employee before you send or transport them.</div>`;
 
   // Closest sites to this store, with open / closed status and a recommendation.
   const near = store ? (STORE_NEAREST[String(Number(store.n))] || []).filter(n => siteById(n[0])).sort((a, b) => a[1] - b[1]) : [];
@@ -1306,9 +1317,9 @@ function siteSelectorHTML(label) {
       return `<div class="site-card ${d.siteChoice === x.id ? 'on' : ''}" role="button" tabindex="0" onclick="pickSite('${esc(x.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();pickSite('${esc(x.id)}')}">
         <div class="sc-top"><span><strong>${esc(x.name)}</strong>${i === recIdx ? ' <span class="badge-rec">Recommended</span>' : ''}</span><span class="sc-mi">${esc(miText(e))}</span></div>
         <div>${esc(x.address)}</div>
-        <div class="sc-sub">${x.hours ? esc(x.hours) : 'Hours not listed'}${x.phone ? ' · ' + esc(x.phone) : ''}</div>
+        <div class="sc-sub">${x.hours ? esc(x.hours) : 'Hours not listed'}${x.phone ? ' · ' + telLinks(x.phone) : ''}</div>
         <div class="st ${si.cls}">${esc(si.text)}</div>
-        <div class="sc-links"><a href="${esc(mapsDir(x))}" ${LNK}>Directions</a> · <a href="${esc(mapsFind(x))}" ${LNK}>Live hours &amp; phone (Maps)</a>${x.src === 'listing' ? ' · <span class="sc-note">From provider listing — confirm by phone</span>' : ''}</div>
+        <div class="sc-links"><a href="${esc(mapsDir(x))}" ${LNK}>Directions</a> · <a href="${esc(mapsFind(x))}" ${LNK}>Live hours &amp; phone (Maps)</a>${x.ver !== 'official' ? ' · <span class="sc-note">Not confirmed on the official page — call to verify</span>' : ''}</div>
       </div>`;
     }).join('');
   } else if (store) {
@@ -1344,8 +1355,8 @@ function siteSelectorHTML(label) {
     const si = statusInfo(siteStatus(site, tz, near1 ? travelMin(near1[1], !!near1[2]) : 15));
     html += `<div class="site-detail"><strong>${esc(site.name)}</strong><br>${esc(site.address)}${site.hours ? '<br>Hours: ' + esc(site.hours) : ''}
       <br><span class="st ${si.cls}">${esc(si.text)}</span>
-      ${site.phone ? '<br>Call to confirm they are open and can receive the employee: <strong>' + esc(site.phone) + '</strong>' : '<br>No phone number on file — open Maps below for the number and live hours.'}
-      <br><a href="${esc(mapsDir(site))}" ${LNK}>Directions</a> · <a href="${esc(mapsFind(site))}" ${LNK}>Live hours &amp; phone (Maps)</a>${site.src === 'listing' ? '<br><span class="sc-note">From the provider listing — confirm the address and hours by phone before you go.</span>' : ''}</div>`;
+      ${site.phone ? '<br>Call to confirm they are open and can receive the employee: <strong>' + telLinks(site.phone) + '</strong>' : '<br>No phone number on file — open Maps below for the number and live hours.'}
+      <br><a href="${esc(mapsDir(site))}" ${LNK}>Directions</a> · <a href="${esc(mapsFind(site))}" ${LNK}>Live hours &amp; phone (Maps)</a>${site.ver !== 'official' ? '<br><span class="sc-note">Not confirmed on the official page — confirm the address and hours by phone before you go.</span>' : ''}</div>`;
   }
   if (brand) html += `<div class="gate"><span>&#9888;</span><span><strong>Every ${esc(brand.name)} location is approved.</strong> Enter the address and phone number of the location you are using, and call to confirm it is open.</span></div>
       <div class="field"><label>${esc(brand.name)} location — address and phone</label><input type="text" id="f-siteOtherName" value="${esc(d.siteOtherName)}" placeholder="Street address, city, and phone number"></div>`;
@@ -1640,7 +1651,8 @@ function render() {
       <div class="btn-row no-print">
         <button class="btn btn-primary" onclick="copyEmailBody()">&#128203;&nbsp; Copy Email Body (paste into Outlook)</button>
         <button class="btn btn-neutral" onclick="copySubject()">Copy Subject Line</button>
-        <button class="btn btn-dark" onclick="printRecord()">&#128424;&nbsp; Print / Save as PDF</button>
+        <button class="btn btn-dark" onclick="downloadPDF()">&#128196;&nbsp; Download PDF</button>
+        <button class="btn btn-neutral" onclick="printRecord()">&#128424;&nbsp; Print</button>
         <button class="btn btn-neutral" onclick="newIncident()">Start a New Incident</button>
       </div>`
   };
@@ -1951,6 +1963,173 @@ function printRecord() {
   document.title = 'RS Incident Record - ' + employeeLastFirst().replace(/[^\w ,.\-]/g, '') + ' - ' + ymd;
   window.print();
   setTimeout(() => { document.title = prev; }, 1000);
+}
+
+// ============================================================
+// PDF DOWNLOAD (no libraries, works offline)
+// Builds a plain, text-based PDF from the same text as the email copy, so the PDF and the email always say the same thing.
+// ============================================================
+const PDF_W_REG = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
+const PDF_W_BOLD = [278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584];
+// Characters outside Latin-1 are swapped for the closest plain character; anything else becomes "?".
+const PDF_MAP = { '—': '\x97', '–': '\x96', '‘': '\x91', '’': '\x92', '“': '\x93', '”': '\x94', '•': '\x95', '…': '\x85', '→': '->', '≈': '~', '✓': '', ' ': ' ', ' ': ' ', '​': '' };
+function pdfClean(s) {
+  let out = '';
+  for (const ch of String(s)) {
+    if (PDF_MAP[ch] !== undefined) out += PDF_MAP[ch];
+    else if (ch === '\t') out += ' ';
+    else if (ch.charCodeAt(0) < 32) out += '';
+    else if (ch.charCodeAt(0) <= 255 && !(ch.charCodeAt(0) >= 127 && ch.charCodeAt(0) < 160)) out += ch;
+    else out += '?';
+  }
+  return out;
+}
+function pdfCharW(c, bold) {
+  const code = c.charCodeAt(0);
+  if (code >= 32 && code <= 126) return (bold ? PDF_W_BOLD : PDF_W_REG)[code - 32];
+  if (code === 0x97) return 1000;
+  if (code === 0x96 || code === 0x95) return 556;
+  return 556;   // accented letters and other symbols: a safe average
+}
+function pdfWidth(s, size, bold) { let w = 0; for (const c of s) w += pdfCharW(c, bold); return w * size / 1000 * 1.015; }
+function pdfWrap(s, size, bold, firstW, restW) {
+  const lines = []; let cur = '';
+  const limit = () => (lines.length === 0 ? firstW : restW);
+  for (let w of s.split(' ')) {
+    while (pdfWidth(w, size, bold) > restW) {   // a single very long word: break it across lines
+      const room = cur ? limit() : limit();
+      if (cur) { lines.push(cur); cur = ''; continue; }
+      let n = w.length; while (n > 1 && pdfWidth(w.slice(0, n), size, bold) > limit()) n--;
+      lines.push(w.slice(0, n)); w = w.slice(n);
+    }
+    const t = cur ? cur + ' ' + w : w;
+    if (cur && pdfWidth(t, size, bold) > limit()) { lines.push(cur); cur = w; } else cur = t;
+  }
+  lines.push(cur);
+  return lines;
+}
+function pdfEsc(s) { return s.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)'); }
+
+// Returns the PDF as a Uint8Array.
+function buildRecordPDF() {
+  const PW = 612, PH = 792, M = 54, TOP = PH - 56, BOT = 60, CW = PW - 2 * M;
+  const pages = [[]]; let y = TOP;
+  const cur = () => pages[pages.length - 1];
+  const newPage = () => { pages.push([]); y = TOP; };
+  const need = h => { if (y - h < BOT) newPage(); };
+  const text = (s, x, size, bold) => cur().push('BT /' + (bold ? 'F2' : 'F1') + ' ' + size + ' Tf ' + x.toFixed(2) + ' ' + y.toFixed(2) + ' Td (' + pdfEsc(s) + ') Tj ET');
+  const rule = (x1, x2, yy, wt) => cur().push((wt || 0.6) + ' w ' + x1 + ' ' + yy.toFixed(2) + ' m ' + x2 + ' ' + yy.toFixed(2) + ' l S');
+  // paragraph: optional bold lead-in ("Date of Incident:") followed by regular text
+  const para = (lead, body, o) => {
+    o = o || {}; const size = o.size || 10, step = Math.round(size * 1.35), indent = o.indent || 0, hang = o.hang || 0;
+    lead = lead ? pdfClean(lead) : ''; body = pdfClean(body || '');
+    const leadW = lead ? pdfWidth(lead + ' ', size, true) : 0;
+    const lines = pdfWrap(body, size, false, CW - indent - leadW, CW - indent - hang);
+    lines.forEach((t, i) => {
+      need(step); y -= size;
+      const x = M + indent + (i === 0 ? 0 : hang);
+      if (i === 0 && lead) { text(lead, x, size, true); text(t, x + leadW, size, false); }
+      else text(t, x, size, !!o.bold);
+      y -= (step - size);
+    });
+    y -= (o.after === undefined ? 3 : o.after);
+  };
+  const heading = s => { need(48); y -= 8; y -= 11; text(pdfClean(s), M, 11, true); y -= 5; rule(M, PW - M, y, 0.8); y -= 7; };
+
+  // Title block
+  y -= 15; text('CONFIDENTIAL', M, 9, true); y -= 17;
+  text('Reasonable Suspicion Incident Record', M, 16, true); y -= 8; rule(M, PW - M, y, 1.2); y -= 12;
+
+  // Body, from the email text
+  const lines = recordText().split('\n');
+  let section = '';
+  for (let i = 0; i < lines.length; i++) {
+    const L = lines[i];
+    if (i === 0) continue;                                   // title line is already printed above
+    if (/^-{10,}$/.test(L)) continue;
+    if (lines[i + 1] && /^-{10,}$/.test(lines[i + 1])) { section = L; heading(L); continue; }
+    if (L === '') { y -= 2; continue; }
+    const bullet = L.match(/^\s+-\s+(.*)$/);
+    if (bullet) { para('', '\u2022 ' + bullet[1], { indent: 10, hang: 8 }); continue; }
+    if (section === 'INCIDENT SUMMARY') {
+      const m = L.match(/^([A-Za-z\/ ]+?):\s+(.*)$/);
+      if (m && m[1].length < 45) { para(m[1] + ':', m[2], { hang: 12 }); continue; }
+    }
+    if (section === 'BASIS FOR REASONABLE SUSPICION') {
+      const m = L.match(/^(Additional notes:|Corroboration:)\s+(.*)$/);
+      if (m) { para(m[1], m[2], { hang: 0 }); continue; }
+    }
+    if (section === 'CHRONOLOGICAL RECORD OF ACTIONS') {
+      const m = L.match(/^\[([^\]]+)\]\s+(.*)$/);
+      if (m) { para('[' + m[1] + ']', m[2], { size: 9, hang: 14 }); continue; }
+    }
+    para('', L, {});
+  }
+
+  // Signature lines
+  need(80); y -= 26;
+  rule(M, M + 215, y, 0.7); rule(PW - M - 215, PW - M, y, 0.7); y -= 11;
+  text('INITIATING MANAGER SIGNATURE / DATE', M, 7.5, false); text('WITNESSING MANAGER SIGNATURE / DATE', PW - M - 215, 7.5, false);
+
+  // Footers (need the page count, so they are added last)
+  const total = pages.length, foot = pdfClean('Confidential — Management and HR use only  |  ' + employeeLastFirst() + '  |  Page ');
+  pages.forEach((p, i) => {
+    const s = foot + (i + 1) + ' of ' + total, w = pdfWidth(s, 8, false);
+    p.push('0.5 w ' + M + ' 46 m ' + (PW - M) + ' 46 l S');
+    p.push('BT /F1 8 Tf ' + (M) + ' 34 Td (' + pdfEsc(s) + ') Tj ET');
+  });
+
+  // Assemble the file. Every character is one byte, so string length is byte length.
+  const objs = []; const add = s => { objs.push(s); return objs.length; };
+  add('<< /Type /Catalog /Pages 2 0 R >>');
+  add('PAGES');   // placeholder, filled below
+  add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+  add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+  const kids = [];
+  pages.forEach(p => {
+    const content = p.join('\n');
+    const cid = add('<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream');
+    const pid = add('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ' + cid + ' 0 R >>');
+    kids.push(pid + ' 0 R');
+  });
+  objs[1] = '<< /Type /Pages /Kids [' + kids.join(' ') + '] /Count ' + kids.length + ' >>';
+  const infoId = add('<< /Title (' + pdfEsc(pdfClean('Reasonable Suspicion Incident Record - ' + employeeLastFirst())) + ') /Producer (Reasonable Suspicion Process Guide) >>');
+  let out = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n'; const offs = [];
+  objs.forEach((o, i) => { offs.push(out.length); out += (i + 1) + ' 0 obj\n' + o + '\nendobj\n'; });
+  const xref = out.length;
+  out += 'xref\n0 ' + (objs.length + 1) + '\n0000000000 65535 f \n' + offs.map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('');
+  out += 'trailer\n<< /Size ' + (objs.length + 1) + ' /Root 1 0 R /Info ' + infoId + ' 0 R >>\nstartxref\n' + xref + '\n%%EOF\n';
+  const bytes = new Uint8Array(out.length);
+  for (let i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i) & 255;
+  return bytes;
+}
+function pdfFileName() {
+  const first = S.log.length ? new Date(S.log[0].iso) : new Date();
+  const ymd = first.getFullYear() + '-' + String(first.getMonth() + 1).padStart(2, '0') + '-' + String(first.getDate()).padStart(2, '0');
+  return 'RS_Incident_Record_' + employeeLastFirst().replace(/[^\w]+/g, '_').replace(/^_+|_+$/g, '') + '_' + ymd + '.pdf';
+}
+// On a phone this opens the share sheet (Save to Files, Mail, Drive, etc.). On a computer it downloads the file.
+function downloadPDF() {
+  let bytes;
+  try { bytes = buildRecordPDF(); } catch (e) { alert('The PDF could not be created. Use Print, then choose Save as PDF.'); return; }
+  const name = pdfFileName();
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const saveFile = () => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name; a.style.display = 'none';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 4000);
+  };
+  const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  try {
+    const file = new File([blob], name, { type: 'application/pdf' });
+    if (mobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: name }).catch(err => { if (!err || err.name !== 'AbortError') saveFile(); });
+      return;
+    }
+  } catch (e) {}
+  saveFile();
 }
 
 function newIncident() {
