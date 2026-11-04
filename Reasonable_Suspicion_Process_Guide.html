@@ -58,6 +58,14 @@
   .site-detail { background: var(--green-bg); border: 1px solid var(--green-border); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--slate); line-height: 1.6; margin-bottom: 14px; }
   .site-detail strong { color: var(--charcoal); }
   .verify-banner { background: var(--gold-bg); border: 1px solid var(--gold-border); border-left: 5px solid var(--gold-border); border-radius: 8px; padding: 10px 14px; margin: 4px 0 14px; font-size: 13.5px; line-height: 1.5; color: var(--gold-text); }
+  .send-banner { background: var(--redpath-bg); border: 1px solid var(--redpath-border); border-left: 5px solid var(--red); border-radius: 8px; padding: 12px 16px; margin: 0 0 14px; font-size: 14px; line-height: 1.55; color: var(--charcoal); }
+  .send-banner strong { color: var(--red-dark); }
+  .send-banner .sb-sub { display: block; margin-top: 4px; font-size: 12.5px; color: var(--slate); }
+  .ride-opt { display: flex; align-items: flex-start; gap: 10px; background: white; border: 1.5px solid var(--green-border); border-radius: 8px; padding: 11px 12px; margin-bottom: 8px; cursor: pointer; font-size: 14px; line-height: 1.4; color: var(--slate); }
+  .ride-opt input { accent-color: var(--green); width: 18px; height: 18px; margin-top: 1px; flex-shrink: 0; }
+  .ride-opt.on { border-color: var(--green); background: #F4FBF6; color: var(--charcoal); font-weight: 600; }
+  .ride-opt small { display: block; font-weight: 400; font-size: 12px; color: var(--mid); margin-top: 2px; }
+  .ride-detail { margin-top: 10px; margin-bottom: 4px; }
   .rec-banner { background: var(--green-bg); border: 1px solid var(--green-border); border-radius: 8px; padding: 10px 14px; font-size: 13.5px; line-height: 1.55; margin-bottom: 12px; color: var(--charcoal); }
   .badge-rec { display: inline-block; background: var(--green); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: 1px; }
   .st { font-size: 12.5px; font-weight: 700; margin-top: 2px; }
@@ -223,6 +231,7 @@ const S = {
     policeCalled: false,
     storeNum: '', siteStore: '', siteStoreOther: '', siteStoreTouched: false, siteChoice: '', siteOtherName: '', siteOtherPhone: '', siteOtherApprover: '',
     ahTime: '', afterHours: false,
+    rideMethod: '', rideDetail: '',
     outcome: '', path: '', generatedISO: ''
   },
   stack: [] // for undo: snapshots of {step, dataJSON, logLen}
@@ -1474,21 +1483,14 @@ function render() {
         <h2>Facility closed: schedule the test for the next day and get them home safely.</h2>
         <p class="lead">The facility is closed, but ${name()} still cannot remain at work and cannot drive themselves. Follow this protocol exactly:</p>
         <div class="gate" style="margin-bottom:6px;"><span>1.</span><span><strong>Schedule the test for the next day.</strong> Choose the site below, call to book the appointment for the next day it is open (check the hours shown), and record the date and time.</span></div>
-        <div class="gate" style="margin-bottom:6px;"><span>2.</span><span><strong>Provide safe transportation home now.</strong> Offer a ride or a company-reimbursed rideshare (see safe-travel options below). The employee does not drive.</span></div>
+        <div class="gate" style="margin-bottom:6px;"><span>2.</span><span><strong>Provide safe transportation home now.</strong> Choose how they get home below and record it. The employee does not drive.</span></div>
         <div class="gate" style="margin-bottom:6px;"><span>3.</span><span><strong>Instruct the employee to report to the scheduled appointment.</strong> Be specific about where and when.</span></div>
         <div class="gate" style="margin-bottom:6px;"><span>4.</span><span><strong>The employee must provide proof of testing before returning to work.</strong> They do not resume their duties until that proof is received.</span></div>
 
         <div style="margin-top:14px;">${siteSelectorHTML('Testing site for the next-day appointment')}</div>
         <div class="field"><label>Scheduled appointment — date and time</label><input type="text" id="f-ahTime" value="${esc(S.data.ahTime)}" placeholder="${esc(ahPlaceholder())}">${ahHint()}</div>
 
-        <div class="safe-travel">
-          <div class="st-title">&#128663; Safe travel home — your options</div>
-          <ul>
-            <li>Offer the employee a ride home (manager or designated driver), or</li>
-            <li>Offer to arrange and pay for a rideshare — the company reimburses the manager for the cost.</li>
-          </ul>
-          <div class="st-note">The employee must not drive. If they refuse safe transport and attempt to drive, follow the warning-and-police steps.</div>
-        </div>
+        ${rideHomeHTML()}
 
         <p class="lead" style="margin-bottom:8px; margin-top:14px;"><strong>Does ${name()} agree to this and leave safely?</strong></p>
         <div class="btn-row">
@@ -1535,16 +1537,10 @@ function render() {
         <div class="path-tag green">GREEN PATH — AFTER TESTING</div>
         <h2>Back from the facility: clock out, get them home safely.</h2>
         <p class="lead">Upon return from the facility, have ${name()} <strong>clock out, regardless of the results of the test</strong> — then arrange to get them home safely. They do not drive themselves home.</p>
-        <div class="safe-travel">
-          <div class="st-title">&#128663; Safe travel home — your options</div>
-          <ul>
-            <li>Offer the employee a ride home (manager or designated driver), or</li>
-            <li>Offer to arrange and pay for a rideshare — the company reimburses the manager for the cost.</li>
-          </ul>
-        </div>
+        ${rideHomeHTML()}
         <div class="btn-row">
-          <button class="btn btn-green" onclick="logEvent('Employee clocked out upon return from facility. Safe ride home arranged.'); S.data.outcome='Tested; clocked out; left safely with arranged transportation.'; pushState('notify-after')">&#10003;&nbsp; Clocked Out — Left Safely <span class="arrow">&#8594;</span></button>
-          <button class="btn btn-redp" onclick="logEvent('Employee refused a ride and is attempting to drive home.'); pushState('police')">&#10007;&nbsp; They Refuse a Ride and Drive <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-green" onclick="saveReturn()">&#10003;&nbsp; Clocked Out — Left Safely <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-redp" onclick="rideReset(); logEvent('Employee refused a ride and is attempting to drive home.'); pushState('police')">&#10007;&nbsp; They Refuse a Ride and Drive <span class="arrow">&#8594;</span></button>
         </div>
         <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
       </div>`,
@@ -1586,21 +1582,15 @@ function render() {
             <li>Physically stop or restrain them</li>
           </ul>
         </div>
-        <div class="safe-travel">
-          <div class="st-title">&#128663; Safe travel home — your options</div>
-          <ul>
-            <li>Offer the employee a ride home (manager or designated driver), or</li>
-            <li>Offer to arrange and pay for a rideshare — the company reimburses the manager for the cost.</li>
-          </ul>
-        </div>
+        ${rideHomeHTML()}
         <div class="script-box">
           <div class="script-label">If they move toward driving, say exactly this</div>
           <div class="script-text">&ldquo;We do not believe you are safe to drive. If you leave in your vehicle, we will have to notify the police.&rdquo;</div>
         </div>
         <p class="lead" style="margin-bottom:8px;"><strong>What happens?</strong></p>
         <div class="btn-row">
-          <button class="btn btn-green" onclick="logEvent('Employee accepted safe transportation home / left safely without driving.'); S.data.outcome='Refused testing (documented, willful). Left safely with arranged transportation.'; pushState('notify-after')">&#10003;&nbsp; They Accept a Ride / Leave Safely <span class="arrow">&#8594;</span></button>
-          <button class="btn btn-redp" onclick="logEvent('Employee was warned, refused a ride, and is driving away.'); pushState('police')">&#10007;&nbsp; They Refuse a Ride and Drive <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-green" onclick="saveRedFinal()">&#10003;&nbsp; They Accept a Ride / Leave Safely <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-redp" onclick="rideReset(); logEvent('Employee was warned, refused a ride, and is driving away.'); pushState('police')">&#10007;&nbsp; They Refuse a Ride and Drive <span class="arrow">&#8594;</span></button>
         </div>
         <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
       </div>`,
@@ -1636,6 +1626,10 @@ function render() {
 
     // ─────────────────────────────────────────────────────────
     record: () => `
+      <div class="send-banner no-print">
+        <strong>Last step: email this report to your District Manager and your HR partner.</strong>
+        <span class="sb-sub">Copy the email body and the subject line below, paste them into a new email, and send it to both. If this device has no email, download the PDF and send it from another device.</span>
+      </div>
       <div class="subject-box no-print">
         <div class="sb-label">Email subject line</div>
         <div class="sb-text">${esc(emailSubject())}</div>
@@ -1723,6 +1717,84 @@ function goRed(from, msg) {
   pushState('red-script', snap);
 }
 
+// ============================================================
+// SAFE RIDE HOME — five ways, one is recorded every time
+// ============================================================
+const RIDE_OPTIONS = [
+  { key: 'manager',   label: 'A manager drives them home',
+    phrase: 'a manager drove the employee home' },
+  { key: 'rideshare', label: 'A rideshare, arranged and paid for by the manager', sub: 'The company reimburses the manager for the cost.',
+    phrase: 'a rideshare was arranged by the manager (company reimburses the cost)' },
+  { key: 'colleague', label: 'A colleague drives them home', sub: 'Only if the colleague is willing. Do not pressure anyone to drive.',
+    detail: 'Colleague’s name', phrase: 'a colleague drove the employee home', sep: ' — ' },
+  { key: 'pickup',    label: 'The employee calls someone to pick them up',
+    detail: 'Who is picking them up (name and relationship)', phrase: 'the employee called someone to pick them up', sep: ' — ' },
+  { key: 'emergency', label: 'We call their emergency contact to pick them up', sub: 'Use the emergency contact on the employee’s file.',
+    detail: 'Emergency contact (name and relationship)', phrase: 'the emergency contact was called to pick up the employee', sep: ' — ' }
+];
+function rideOpt(key) { return RIDE_OPTIONS.find(o => o.key === key) || null; }
+
+// One sentence for the log, the outcome and the record. cap = capitalize the first letter.
+function rideText(cap) {
+  const o = rideOpt(S.data.rideMethod);
+  if (!o) return '';
+  let t = o.phrase + (o.detail && S.data.rideDetail ? o.sep + S.data.rideDetail : '');
+  return cap ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+}
+
+function rideHomeHTML() {
+  const d = S.data, cur = rideOpt(d.rideMethod);
+  const opts = RIDE_OPTIONS.map(o => `
+    <label class="ride-opt${d.rideMethod === o.key ? ' on' : ''}">
+      <input type="radio" name="rideMethod" value="${o.key}"${d.rideMethod === o.key ? ' checked' : ''} onchange="setRide('${o.key}')">
+      <span>${o.label}${o.sub ? '<small>' + o.sub + '</small>' : ''}</span>
+    </label>`).join('');
+  const detail = cur && cur.detail
+    ? `<div class="field ride-detail"><label for="f-rideDetail">${cur.detail}</label><input type="text" id="f-rideDetail" value="${esc(d.rideDetail)}" oninput="S.data.rideDetail=this.value; persist()"></div>`
+    : '';
+  return `<div class="safe-travel" id="rideBox">
+      <div class="st-title">&#128663; Safe travel home — choose how ${esc(S.data.employee) || 'the employee'} gets home</div>
+      ${opts}${detail}
+      <div class="st-note">The employee must not drive. Stay with the employee until the ride arrives and they leave in it. If they refuse safe transport and attempt to drive, follow the warning-and-police steps.</div>
+    </div>`;
+}
+
+function setRide(key) {
+  if (S.data.rideMethod !== key) { S.data.rideMethod = key; S.data.rideDetail = ''; }
+  const box = document.getElementById('rideBox');
+  if (box) box.outerHTML = rideHomeHTML();
+  persist();
+  const f = document.getElementById('f-rideDetail');
+  if (f) f.focus();
+}
+
+// Every "left safely" button calls this first. Returns true when the method (and any required name) is recorded.
+function rideValid() {
+  const f = document.getElementById('f-rideDetail');
+  if (f) S.data.rideDetail = f.value.trim();
+  const o = rideOpt(S.data.rideMethod);
+  if (!o) { alert('Choose how the employee is getting home safely before you continue.'); return false; }
+  if (o.detail && !S.data.rideDetail) { alert('Enter: ' + o.detail.toLowerCase() + '.'); return false; }
+  return true;
+}
+function rideReset() { S.data.rideMethod = ''; S.data.rideDetail = ''; }
+
+function saveReturn() {
+  if (!rideValid()) return;
+  const snap = snapshot();
+  logEvent('Employee clocked out upon return from facility. Safe ride home: ' + rideText() + '. Employee did not drive.');
+  S.data.outcome = 'Tested; clocked out; left safely — ' + rideText() + '.';
+  pushState('notify-after', snap);
+}
+
+function saveRedFinal() {
+  if (!rideValid()) return;
+  const snap = snapshot();
+  logEvent('Employee accepted safe transportation home and left without driving. Safe ride home: ' + rideText() + '.');
+  S.data.outcome = 'Refused testing (documented, willful). Left safely — ' + rideText() + '.';
+  pushState('notify-after', snap);
+}
+
 function saveFacility(status) {
   captureSiteFields();
   if (!siteValid()) return;
@@ -1742,15 +1814,19 @@ function saveAfterHours(result) {
   if (!siteValid()) return;
   if (!S.data.ahTime) { alert('Enter the scheduled appointment date and time before proceeding.'); return; }
   const si = siteInfo();
+  const snap = snapshot();
   S.data.afterHours = true;
   const instr = 'After-hours protocol: facility closed. Test scheduled for the next day — ' + S.data.ahTime + ' at ' + siteText(si) + '. Employee instructed to report then and provide proof of testing before returning to work.';
   if (result === 'safe') {
-    logEvent(instr + ' Employee sent home safely with arranged transportation.');
-    S.data.outcome = 'After-hours: facility closed. Sent home safely. Test scheduled for ' + S.data.ahTime + ' at ' + si.name + '; must provide proof of testing before returning to work.';
-    pushState('notify-after');
+    if (!rideValid()) return;
+    logEvent(instr + ' Employee sent home safely. Safe ride home: ' + rideText() + '. Employee did not drive.');
+    S.data.outcome = 'After-hours: facility closed. Sent home safely (' + rideText() + '). Test scheduled for ' + S.data.ahTime + ' at ' + si.name + '; must provide proof of testing before returning to work.';
+    pushState('notify-after', snap);
   } else if (result === 'refused') {
+    rideReset();
     goRed('after-hours', instr + ' Employee refused to agree to morning testing — converting to refusal (RED) path.');
   } else if (result === 'drives') {
+    rideReset();
     logEvent(instr + ' Employee refused a ride and is driving away.');
     pushState('police');
   }
@@ -1804,6 +1880,7 @@ function recordModel() {
     refusalRepeats: d.refusalRepeats > 0 ? d.refusalRepeats : 0,
     site: si ? siteText(si) : '',
     afterHours: d.afterHours ? 'Facility closed. Test scheduled for the next day — ' + (d.ahTime || '—') + ' at ' + (si ? si.name + (si.address ? ', ' + si.address : '') : '—') + '. Employee instructed to report then and provide proof of testing before returning to work.' : '',
+    ride: d.rideMethod ? rideText(true) : '',
     police: d.policeCalled ? 'Yes' : 'No',
     start: fmtDT(firstISO), end: fmtDT(lastISO), generated: fmtDT(d.generatedISO || new Date().toISOString()),
     signs: d.signs.slice(), otherObs: d.otherObs, witnessObs: d.witnessObs,
@@ -1845,6 +1922,7 @@ function recordHTML() {
   if (m.refusalRepeats) rows += kv('Refusal Statement Read', m.refusalRepeats + (m.refusalRepeats === 1 ? ' time' : ' times'));
   if (m.site) rows += kv('Testing Site', m.site);
   if (m.afterHours) rows += kv('After-Hours Protocol', m.afterHours);
+  if (m.ride) rows += kv('Safe Ride Home', m.ride);
   rows += kv('Law Enforcement Contacted', m.police);
   if (m.reversals) rows += kv('Steps Reversed', m.reversals + (m.reversals === 1 ? ' time' : ' times') + ' (marked in the chronological record below)');
   rows += kv('Process Started', m.start);
@@ -1894,6 +1972,7 @@ function recordText() {
   if (m.refusalRepeats) row('Refusal Statement Read', m.refusalRepeats + (m.refusalRepeats === 1 ? ' time' : ' times'));
   if (m.site) row('Testing Site', m.site);
   if (m.afterHours) row('After-Hours Protocol', m.afterHours);
+  if (m.ride) row('Safe Ride Home', m.ride);
   row('Law Enforcement Contacted', m.police);
   if (m.reversals) row('Steps Reversed', m.reversals + (m.reversals === 1 ? ' time' : ' times') + ' (marked in the chronological record below)');
   row('Process Started', m.start);
