@@ -265,9 +265,20 @@ function snapshot() {
   return { step: S.step, data: JSON.stringify(S.data), pathHistory: JSON.stringify(S.pathHistory), logLen: S.log.length };
 }
 
+// Undo bookmark. Everything a button logs during one click belongs to that click, so if the manager
+// goes back, those entries are marked [Reversed]. Without this, a handler that logs and then moves on
+// would take its bookmark after logging, and Undo would leave the retracted entry unmarked on the record.
+let CLICK_LOG_LEN = null;
+document.addEventListener('click', () => {
+  CLICK_LOG_LEN = S.log.length;
+  setTimeout(() => { CLICK_LOG_LEN = null; }, 0);
+}, true);
+
 // snap (optional): a snapshot taken before this step changed the data, so Undo restores the true prior state.
 function pushState(nextStep, snap) {
-  S.stack.push(snap || snapshot());
+  const s = snap || snapshot();
+  if (CLICK_LOG_LEN !== null && CLICK_LOG_LEN < s.logLen) s.logLen = CLICK_LOG_LEN;
+  S.stack.push(s);
   S.step = nextStep;
   render();
 }
@@ -1488,7 +1499,7 @@ function render() {
         <div class="gate" style="margin-bottom:6px;"><span>4.</span><span><strong>The employee must provide proof of testing before returning to work.</strong> They do not resume their duties until that proof is received.</span></div>
 
         <div style="margin-top:14px;">${siteSelectorHTML('Testing site for the next-day appointment')}</div>
-        <div class="field"><label>Scheduled appointment — date and time</label><input type="text" id="f-ahTime" value="${esc(S.data.ahTime)}" placeholder="${esc(ahPlaceholder())}">${ahHint()}</div>
+        <div class="field"><label>Scheduled appointment — date and time <span style="font-weight:400; text-transform:none; letter-spacing:0;">(required if the employee agrees)</span></label><input type="text" id="f-ahTime" value="${esc(S.data.ahTime)}" placeholder="${esc(ahPlaceholder())}">${ahHint()}</div>
 
         ${rideHomeHTML()}
 
@@ -1725,8 +1736,8 @@ const RIDE_OPTIONS = [
     phrase: 'a manager drove the employee home' },
   { key: 'rideshare', label: 'A rideshare, arranged and paid for by the manager', sub: 'The company reimburses the manager for the cost.',
     phrase: 'a rideshare was arranged by the manager (company reimburses the cost)' },
-  { key: 'colleague', label: 'A colleague drives them home', sub: 'Only if the colleague is willing. Do not pressure anyone to drive.',
-    detail: 'Colleague’s name', phrase: 'a colleague drove the employee home', sep: ' — ' },
+  { key: 'colleague', label: 'A colleague drives them home, with manager approval', sub: 'Manager approval is required. Only if the colleague is willing. Do not pressure anyone to drive.',
+    detail: 'Colleague’s name', phrase: 'a colleague drove the employee home with manager approval', sep: ' — ' },
   { key: 'pickup',    label: 'The employee calls someone to pick them up',
     detail: 'Who is picking them up (name and relationship)', phrase: 'the employee called someone to pick them up', sep: ' — ' },
   { key: 'emergency', label: 'We call their emergency contact to pick them up', sub: 'Use the emergency contact on the employee’s file.',
@@ -1812,13 +1823,17 @@ function saveFacility(status) {
 function saveAfterHours(result) {
   captureSiteFields();
   if (!siteValid()) return;
-  if (!S.data.ahTime) { alert('Enter the scheduled appointment date and time before proceeding.'); return; }
+  // The appointment and the ride are required only when the employee agrees and goes home with morning
+  // instructions. A refusal is never blocked by a missing appointment; it is recorded as it happened.
+  if (result === 'safe' && !S.data.ahTime) { alert('Enter the scheduled appointment date and time before proceeding.'); return; }
+  if (result === 'safe' && !rideValid()) return;
   const si = siteInfo();
   const snap = snapshot();
   S.data.afterHours = true;
-  const instr = 'After-hours protocol: facility closed. Test scheduled for the next day — ' + S.data.ahTime + ' at ' + siteText(si) + '. Employee instructed to report then and provide proof of testing before returning to work.';
+  const instr = S.data.ahTime
+    ? 'After-hours protocol: facility closed. Test scheduled for the next day — ' + S.data.ahTime + ' at ' + siteText(si) + '. Employee instructed to report then and provide proof of testing before returning to work.'
+    : 'After-hours protocol: facility closed.';
   if (result === 'safe') {
-    if (!rideValid()) return;
     logEvent(instr + ' Employee sent home safely. Safe ride home: ' + rideText() + '. Employee did not drive.');
     S.data.outcome = 'After-hours: facility closed. Sent home safely (' + rideText() + '). Test scheduled for ' + S.data.ahTime + ' at ' + si.name + '; must provide proof of testing before returning to work.';
     pushState('notify-after', snap);
@@ -1879,7 +1894,7 @@ function recordModel() {
     sequence: S.pathHistory.length > 1 ? S.pathHistory.map(responseLabel).join(' → ') : '',
     refusalRepeats: d.refusalRepeats > 0 ? d.refusalRepeats : 0,
     site: si ? siteText(si) : '',
-    afterHours: d.afterHours ? 'Facility closed. Test scheduled for the next day — ' + (d.ahTime || '—') + ' at ' + (si ? si.name + (si.address ? ', ' + si.address : '') : '—') + '. Employee instructed to report then and provide proof of testing before returning to work.' : '',
+    afterHours: d.afterHours ? (d.ahTime ? 'Facility closed. Test scheduled for the next day — ' + d.ahTime + ' at ' + (si ? si.name + (si.address ? ', ' + si.address : '') : '—') + '. Employee instructed to report then and provide proof of testing before returning to work.' : 'Facility closed. No next-day appointment was recorded.') : '',
     ride: d.rideMethod ? rideText(true) : '',
     police: d.policeCalled ? 'Yes' : 'No',
     start: fmtDT(firstISO), end: fmtDT(lastISO), generated: fmtDT(d.generatedISO || new Date().toISOString()),
