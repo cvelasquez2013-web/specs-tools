@@ -66,6 +66,20 @@
   .ride-opt.on { border-color: var(--green); background: #F4FBF6; color: var(--charcoal); font-weight: 600; }
   .ride-opt small { display: block; font-weight: 400; font-size: 12px; color: var(--mid); margin-top: 2px; }
   .ride-detail { margin-top: 10px; margin-bottom: 4px; }
+  .ah-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 10px; }
+  .ah-sub { display: block; font-size: 11px; font-weight: 600; color: var(--mid); margin-bottom: 4px; }
+  .field input[type=date] { width: 100%; height: 46px; border: 1.5px solid var(--border); border-radius: 8px; padding: 0 12px; font-size: 15px; font-family: inherit; color: var(--charcoal); background: var(--bg); outline: none; }
+  .field input[type=date]:focus { border-color: var(--red); background: white; }
+  .ah-row select { height: 46px; }
+  .ah-suggest { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--green-bg); border: 1px solid var(--green-border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; font-size: 13.5px; line-height: 1.45; color: var(--slate); }
+  .ah-suggest strong { color: var(--green); }
+  .ah-suggest small { color: var(--mid); font-size: 12px; }
+  .ah-use { border: 1.5px solid var(--green); background: white; color: var(--green); font-weight: 700; font-size: 13px; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-family: inherit; }
+  .ah-use:hover { background: var(--green); color: white; }
+  .ah-set { margin-top: 10px; font-size: 14px; font-weight: 700; color: var(--green); }
+  .ah-set.dim { color: var(--charcoal); }
+  .ah-warn { margin-top: 8px; font-size: 12.5px; line-height: 1.45; background: var(--gold-bg); border: 1px solid var(--gold-border); color: var(--gold-text); border-radius: 8px; padding: 8px 10px; }
+  .ah-warn.hard { background: var(--redpath-bg); border-color: var(--redpath-border); color: var(--red-dark); }
   .rec-banner { background: var(--green-bg); border: 1px solid var(--green-border); border-radius: 8px; padding: 10px 14px; font-size: 13.5px; line-height: 1.55; margin-bottom: 12px; color: var(--charcoal); }
   .badge-rec { display: inline-block; background: var(--green); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: 1px; }
   .st { font-size: 12.5px; font-weight: 700; margin-top: 2px; }
@@ -230,7 +244,7 @@ const S = {
     refusalRepeats: 0,
     policeCalled: false,
     storeNum: '', siteStore: '', siteStoreOther: '', siteStoreTouched: false, siteChoice: '', siteOtherName: '', siteOtherPhone: '', siteOtherApprover: '',
-    ahTime: '', afterHours: false,
+    ahTime: '', ahDate: '', ahClock: '', afterHours: false,
     rideMethod: '', rideDetail: '',
     outcome: '', path: '', generatedISO: ''
   },
@@ -1250,7 +1264,11 @@ function captureSiteFields() {
   if (g('f-siteOtherName')) S.data.siteOtherName = g('f-siteOtherName').value.trim();
   if (g('f-siteOtherPhone')) S.data.siteOtherPhone = g('f-siteOtherPhone').value.trim();
   if (g('f-siteOtherApprover')) S.data.siteOtherApprover = g('f-siteOtherApprover').value.trim();
-  if (g('f-ahTime')) S.data.ahTime = g('f-ahTime').value.trim();
+  if (g('f-ahDate') || g('f-ahClock')) {
+    if (g('f-ahDate')) S.data.ahDate = g('f-ahDate').value;
+    if (g('f-ahClock')) S.data.ahClock = g('f-ahClock').value;
+    S.data.ahTime = ahComposeTime();
+  }
 }
 function onSiteChange() {
   const before = S.data.siteChoice;
@@ -1280,18 +1298,131 @@ function siteValid() {
   if (!siteById(d.siteChoice)) { alert('Select the testing facility before proceeding.'); return false; }
   return true;
 }
-// Earliest listed opening on a day after today for the chosen site (used on the closed-facility step).
-function ahNextOpening() {
-  const site = siteById(S.data.siteChoice);
-  const h = site ? parseHours(site.hours) : null;
-  if (!h) return null;
-  const store = currentStore();
-  const n = zonedParts(Date.now(), store ? store.tz : STORE_TZ_DEFAULT);
-  const nx = nextOpen(h, { dow: n.dow, min: 1440 });   // skips the rest of today
-  return nx ? DAY_LONG[nx.dow] + ' at ' + fmtMin(nx.min) : null;
+// ------------------------------------------------------------
+// After-hours appointment: a calendar date plus a time list built from the chosen site's listed hours.
+// The suggestion is the next day the site is open, at its listed opening time. It is never filled in
+// on its own: the manager taps "Use suggested" (or picks a date and time) after calling to book,
+// so the record can never show an appointment nobody made.
+// ------------------------------------------------------------
+const AH_STEP_MIN = 15;
+const AH_GENERIC = [420, 1080];   // 7:00 AM to 6:00 PM when a site has no listed hours
+function ahPad(n) { return String(n).padStart(2, '0'); }
+function ahTz() { const st = currentStore(); return st ? st.tz : STORE_TZ_DEFAULT; }
+function zonedYMD(ms, tz) {
+  let p;
+  try { p = new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(ms)); }
+  catch (e) { const d = new Date(ms); return [d.getFullYear(), d.getMonth() + 1, d.getDate()]; }
+  const g = t => Number((p.find(x => x.type === t) || {}).value);
+  return [g('year'), g('month'), g('day')];
 }
-function ahPlaceholder() { const t = ahNextOpening(); return t ? 'e.g. ' + t : 'e.g. Tuesday at 8:00 AM'; }
-function ahHint() { const t = ahNextOpening(); return t ? '<p style="margin-top:6px;font-size:12.5px;color:var(--mid);">Earliest next-day opening per the listed hours: <strong>' + esc(t) + '</strong>. Call to book the appointment.</p>' : ''; }
+function ymdKey(a) { return a[0] + '-' + ahPad(a[1]) + '-' + ahPad(a[2]); }
+function parseYMD(str) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str || ''); return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null; }
+function ymdAdd(a, n) { const d = new Date(a[0], a[1] - 1, a[2] + n); return [d.getFullYear(), d.getMonth() + 1, d.getDate()]; }
+function ymdDow(a) { return new Date(a[0], a[1] - 1, a[2]).getDay(); }
+function ymdLabel(a) { return new Date(a[0], a[1] - 1, a[2]).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }); }
+function clockMin(str) { const m = /^(\d{2}):(\d{2})$/.exec(str || ''); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }
+function clockStr(min) { return ahPad(Math.floor(min / 60)) + ':' + ahPad(min % 60); }
+function ahHours() { const site = siteById(S.data.siteChoice); return site ? parseHours(site.hours) : null; }
+
+// Next day the site is open (after today), at its listed opening time. Null when the site's hours are not listed.
+function ahSuggestion() {
+  const h = ahHours();
+  if (!h) return null;
+  const tz = ahTz(), n = zonedParts(Date.now(), tz);
+  const nx = nextOpen(h, { dow: n.dow, min: 1440 });   // 1440 skips the rest of today
+  if (!nx) return null;
+  const ymd = ymdAdd(zonedYMD(Date.now(), tz), nx.off);
+  return { ymd, date: ymdKey(ymd), min: nx.min, clock: clockStr(nx.min) };
+}
+// Start times offered for a date: every 15 minutes from opening to one hour before closing.
+function ahSlots(ymd) {
+  const h = ahHours();
+  let win = null;
+  if (h) { const day = ymd || (ahSuggestion() || {}).ymd; if (day) win = h[ymdDow(day)]; }
+  const lo = win ? win[0] : AH_GENERIC[0];
+  let hi = win ? win[1] - TEST_BUFFER_MIN : AH_GENERIC[1];
+  if (hi < lo) hi = lo;
+  const out = [];
+  for (let m = lo; m <= hi; m += AH_STEP_MIN) out.push(m);
+  return out;
+}
+function ahComposeTime() {
+  const y = parseYMD(S.data.ahDate), m = clockMin(S.data.ahClock);
+  return (y && m !== null) ? ymdLabel(y) + ' at ' + fmtMin(m) : '';
+}
+// level 'hard': already in the past, blocks. 'soft': does not match the listed hours, needs the manager to confirm. 'info': nothing to check against.
+function ahChecks() {
+  const d = S.data, ymd = parseYMD(d.ahDate), min = clockMin(d.ahClock), out = [];
+  if (!ymd || min === null) return out;
+  const tz = ahTz(), today = zonedYMD(Date.now(), tz), n = zonedParts(Date.now(), tz);
+  const c = ymdKey(ymd).localeCompare(ymdKey(today));
+  if (c < 0 || (c === 0 && min <= n.min)) out.push({ level: 'hard', text: 'That date and time has already passed.' });
+  const h = ahHours();
+  if (h) {
+    const w = h[ymdDow(ymd)];
+    if (!w) out.push({ level: 'soft', text: 'The listed hours show this site closed on ' + DAY_LONG[ymdDow(ymd)] + 's.' });
+    else if (min < w[0] || min >= w[1]) out.push({ level: 'soft', text: 'That time is outside the listed hours (' + fmtMin(w[0]) + ' to ' + fmtMin(w[1]) + ').' });
+  } else {
+    out.push({ level: 'info', text: 'Hours are not listed for this site. Confirm the time with the facility by phone.' });
+  }
+  return out;
+}
+function ahSuggestHTML() {
+  const s = ahSuggestion();
+  if (!s) return '';
+  const txt = ymdLabel(s.ymd) + ' at ' + fmtMin(s.min);
+  if (S.data.ahDate === s.date && S.data.ahClock === s.clock) return '<div class="ah-suggest"><span>&#10003; This is the facility’s next listed opening: <strong>' + esc(txt) + '</strong></span></div>';
+  return '<div class="ah-suggest"><span>Suggested: <strong>' + esc(txt) + '</strong><br><small>The next day this site is open, at its listed opening time. Call to book it first.</small></span><button type="button" class="ah-use" onclick="ahUseSuggestion()">Use suggested</button></div>';
+}
+function ahClockOptions() {
+  const cur = S.data.ahClock;
+  const list = ahSlots(parseYMD(S.data.ahDate)).map(clockStr);
+  if (cur && clockMin(cur) !== null && !list.includes(cur)) { list.push(cur); list.sort(); }   // keep a time that no longer matches, and flag it
+  return '<option value="">Select time</option>' + list.map(v => '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + fmtMin(clockMin(v)) + '</option>').join('');
+}
+function ahOutHTML() {
+  const chk = ahChecks(), flagged = chk.some(c => c.level !== 'info');
+  let h = S.data.ahTime ? '<div class="ah-set' + (flagged ? ' dim' : '') + '">Appointment: ' + esc(S.data.ahTime) + '</div>' : '';
+  chk.forEach(c => {
+    const tail = c.level === 'soft' ? ' Choose another day or time, or confirm by phone that they will see the employee.' : '';
+    h += '<div class="ah-warn' + (c.level === 'hard' ? ' hard' : '') + '">' + esc(c.text + tail) + '</div>';
+  });
+  return h;
+}
+function ahApptHTML() {
+  const d = S.data, today = ymdKey(zonedYMD(Date.now(), ahTz()));
+  return '<div class="field" id="ahBox"><label>Scheduled appointment — date and time <span style="font-weight:400; text-transform:none; letter-spacing:0;">(required if the employee agrees)</span></label>'
+    + '<div id="ahSug">' + ahSuggestHTML() + '</div>'
+    + '<div class="ah-row">'
+    + '<div><span class="ah-sub">Date</span><input type="date" id="f-ahDate" aria-label="Appointment date" value="' + esc(d.ahDate) + '" min="' + today + '" onchange="setAh()"></div>'
+    + '<div><span class="ah-sub">Time</span><select id="f-ahClock" aria-label="Appointment time" onchange="setAh()">' + ahClockOptions() + '</select></div>'
+    + '</div>'
+    + '<div id="ahOut">' + ahOutHTML() + '</div></div>';
+}
+// Refresh everything except the date box, so typing a date by keyboard is never interrupted.
+function ahRefresh() {
+  const sug = document.getElementById('ahSug'), clk = document.getElementById('f-ahClock'), out = document.getElementById('ahOut');
+  if (sug) sug.innerHTML = ahSuggestHTML();
+  if (clk) clk.innerHTML = ahClockOptions();
+  if (out) out.innerHTML = ahOutHTML();
+}
+function setAh() {
+  const dEl = document.getElementById('f-ahDate'), cEl = document.getElementById('f-ahClock');
+  if (dEl) S.data.ahDate = dEl.value;
+  if (cEl) S.data.ahClock = cEl.value;
+  S.data.ahTime = ahComposeTime();
+  ahRefresh();
+  persist();
+}
+function ahUseSuggestion() {
+  const s = ahSuggestion();
+  if (!s) return;
+  S.data.ahDate = s.date; S.data.ahClock = s.clock; S.data.ahTime = ahComposeTime();
+  const dEl = document.getElementById('f-ahDate');
+  if (dEl) dEl.value = s.date;
+  ahRefresh();
+  persist();
+}
 function currentStore() { const k = S.data.siteStore; return (k && k !== 'other') ? storeByNum(k) : null; }
 
 function siteSelectorHTML(label) {
@@ -1499,7 +1630,7 @@ function render() {
         <div class="gate" style="margin-bottom:6px;"><span>4.</span><span><strong>The employee must provide proof of testing before returning to work.</strong> They do not resume their duties until that proof is received.</span></div>
 
         <div style="margin-top:14px;">${siteSelectorHTML('Testing site for the next-day appointment')}</div>
-        <div class="field"><label>Scheduled appointment — date and time <span style="font-weight:400; text-transform:none; letter-spacing:0;">(required if the employee agrees)</span></label><input type="text" id="f-ahTime" value="${esc(S.data.ahTime)}" placeholder="${esc(ahPlaceholder())}">${ahHint()}</div>
+        ${ahApptHTML()}
 
         ${rideHomeHTML()}
 
@@ -1825,13 +1956,20 @@ function saveAfterHours(result) {
   if (!siteValid()) return;
   // The appointment and the ride are required only when the employee agrees and goes home with morning
   // instructions. A refusal is never blocked by a missing appointment; it is recorded as it happened.
-  if (result === 'safe' && !S.data.ahTime) { alert('Enter the scheduled appointment date and time before proceeding.'); return; }
-  if (result === 'safe' && !rideValid()) return;
+  if (result === 'safe') {
+    if (!S.data.ahTime) { alert('Choose the scheduled appointment date and time before proceeding.'); return; }
+    const chk = ahChecks();
+    const hard = chk.find(c => c.level === 'hard');
+    if (hard) { alert(hard.text + ' Choose a date and time that is still ahead.'); return; }
+    const soft = chk.find(c => c.level === 'soft');
+    if (soft && !confirm(soft.text + '\n\nHas the facility confirmed it will see the employee at this date and time?\n\nOK = yes, continue.   Cancel = go back and change it.')) return;
+    if (!rideValid()) return;
+  }
   const si = siteInfo();
   const snap = snapshot();
   S.data.afterHours = true;
   const instr = S.data.ahTime
-    ? 'After-hours protocol: facility closed. Test scheduled for the next day — ' + S.data.ahTime + ' at ' + siteText(si) + '. Employee instructed to report then and provide proof of testing before returning to work.'
+    ? 'After-hours protocol: facility closed. Test scheduled for ' + S.data.ahTime + ' — ' + siteText(si) + '. Employee instructed to report then and provide proof of testing before returning to work.'
     : 'After-hours protocol: facility closed.';
   if (result === 'safe') {
     logEvent(instr + ' Employee sent home safely. Safe ride home: ' + rideText() + '. Employee did not drive.');
@@ -1894,7 +2032,7 @@ function recordModel() {
     sequence: S.pathHistory.length > 1 ? S.pathHistory.map(responseLabel).join(' → ') : '',
     refusalRepeats: d.refusalRepeats > 0 ? d.refusalRepeats : 0,
     site: si ? siteText(si) : '',
-    afterHours: d.afterHours ? (d.ahTime ? 'Facility closed. Test scheduled for the next day — ' + d.ahTime + ' at ' + (si ? si.name + (si.address ? ', ' + si.address : '') : '—') + '. Employee instructed to report then and provide proof of testing before returning to work.' : 'Facility closed. No next-day appointment was recorded.') : '',
+    afterHours: d.afterHours ? (d.ahTime ? 'Facility closed. Test scheduled for ' + d.ahTime + ' — ' + (si ? si.name + (si.address ? ', ' + si.address : '') : '—') + '. Employee instructed to report then and provide proof of testing before returning to work.' : 'Facility closed. No next-day appointment was recorded.') : '',
     ride: d.rideMethod ? rideText(true) : '',
     police: d.policeCalled ? 'Yes' : 'No',
     start: fmtDT(firstISO), end: fmtDT(lastISO), generated: fmtDT(d.generatedISO || new Date().toISOString()),
