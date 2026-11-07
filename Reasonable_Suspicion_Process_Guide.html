@@ -119,6 +119,12 @@
 
   .gate { background: var(--gold-bg); border: 1px solid var(--gold-border); border-radius: 8px; padding: 11px 14px; font-size: 12px; color: var(--gold-text); line-height: 1.55; margin-bottom: 14px; display: flex; gap: 8px; }
   .gate strong { font-weight: 700; }
+  .ack-box { background: var(--gold-bg); border: 1px solid var(--gold-border); border-radius: 10px; padding: 12px 14px; margin: 0 0 14px; }
+  .ack-box .ack-title { font-size: 12px; font-weight: 800; color: var(--gold-text); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+  .ack-box p { font-size: 13px; color: var(--slate); line-height: 1.5; margin: 0 0 10px; }
+  .ack-item { display: flex; align-items: flex-start; gap: 10px; background: white; border: 1.5px solid var(--gold-border); border-radius: 8px; padding: 11px 12px; margin-bottom: 8px; cursor: pointer; font-size: 14px; line-height: 1.4; color: var(--slate); }
+  .ack-item input { width: 20px; height: 20px; accent-color: var(--green); margin-top: 1px; flex-shrink: 0; }
+  .ack-item small { display: block; font-weight: 400; font-size: 12px; color: var(--mid); margin-top: 2px; }
 
   /* Script display */
   .script-box { background: var(--charcoal); border-radius: 12px; padding: 20px 22px; margin: 14px 0; }
@@ -268,6 +274,8 @@ const S = {
   data: {
     manager: '', witness: '', employee: '', employeeLast: '', employeeId: '', location: '',
     signs: [], otherObs: '', witnessObs: '',
+    witnessConfirmName: '', witnessConfirmed: false, witnessConfirmISO: '', convWitnessSame: '', convWitnessName: '',
+    ackPaper: false, ackClock: false, ackDriver: false, ahAckPaper: false, ahAckWhere: false, ahAckProof: false,
     dmContact: '', dmName: '', dmRole: '', dmApproved: false,
     refusalRepeats: 0,
     policeCalled: false,
@@ -427,6 +435,11 @@ function esc(t) {
   return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 function name() { return esc(S.data.employee) || 'the employee'; }
+// Tick-box acknowledgments. Each box is stored in S.data under its key, so undo and resume restore it.
+function ackItemsHTML(items) {
+  return items.map(it => '<label class="ack-item"><input type="checkbox"' + (S.data[it[0]] ? ' checked' : '') + ' onchange="setAck(\'' + it[0] + '\', this.checked)"><span>' + it[1] + '</span></label>').join('');
+}
+function setAck(key, v) { S.data[key] = !!v; persist(); }
 
 // ============================================================
 // STORES AND APPROVED TESTING SITES
@@ -1454,7 +1467,7 @@ function ahChecks() {
     if (!w) out.push({ level: 'soft', text: 'The listed hours show this site closed on ' + DAY_LONG[ymdDow(ymd)] + 's.' });
     else if (min < w[0] || min >= w[1]) out.push({ level: 'soft', text: 'That time is outside the listed hours (' + fmtMin(w[0]) + ' to ' + fmtMin(w[1]) + ').' });
   } else {
-    out.push({ level: 'info', text: 'Hours are not listed for this site. Confirm the time with the facility by phone.' });
+    out.push({ level: 'info', text: S.data.siteChoice ? 'Hours are not listed for this site. Confirm the time with the facility by phone.' : 'Choose the testing site first so this time can be checked against its listed hours.' });
   }
   return out;
 }
@@ -1533,7 +1546,7 @@ function siteSelectorHTML(label) {
       <input type="text" id="f-siteStore" list="storeList" value="${esc(storeVal)}" placeholder="Type a store number or name" onchange="onSiteChange()" autocomplete="off">
       <button type="button" class="store-browse" data-target="f-siteStore" onclick="openStoreSheet('f-siteStore')">Browse all stores &#9662;</button>
       ${storeDatalistHTML()}</div>
-    <div class="verify-banner"><strong>Confirm before you send anyone.</strong> Hours, addresses and phone numbers were preloaded from public sources (last checked ${DATA_CHECKED}) and can change, especially on holidays. Call the facility and confirm it is open and will accept your employee before you send or transport them.</div>`;
+    <div class="verify-banner"><strong>Confirm before you take anyone.</strong> Hours, addresses and phone numbers were preloaded from public sources (last checked ${DATA_CHECKED}) and can change, especially on holidays. Call the facility and confirm it is open and will accept your employee before you take them.</div>`;
 
   // Closest sites to this store, with open / closed status and a recommendation.
   const near = store ? (STORE_NEAREST[String(Number(store.n))] || []).filter(n => siteById(n[0])).sort((a, b) => a[1] - b[1]) : [];
@@ -1550,7 +1563,7 @@ function siteSelectorHTML(label) {
       html += `<div class="rec-banner"><strong>Recommended right now:</strong> ${esc(r.x.name)}, ${esc(r.x.address)} (${esc(miText(r))}). ${esc(statusInfo(r.st).text)}. Call before you go.</div>`;
     } else {
       const n0 = evals.find(e => e.st.k === 'closed');
-      html += `<div class="gate"><span>&#9888;</span><span><strong>No listed site near this store is open long enough right now.</strong> Use <em>No — Facility Is Closed</em> below to schedule the test for the next day and arrange a safe ride home.${n0 ? ' Nearest site opens ' + esc(nextOpenText(n0.st.next)) + '.' : ''} You can also search Maps for a site that is open now.</span></div>`;
+      html += `<div class="gate"><span>&#9888;</span><span><strong>No listed site near this store is open long enough right now.</strong> Use <em>No — Nothing Is Open Right Now</em> below to schedule the test for the next day and arrange a safe ride home.${n0 ? ' Nearest site opens ' + esc(nextOpenText(n0.st.next)) + '.' : ''} You can also search Maps for a site that is open now.</span></div>`;
     }
     if (evals[0].miles > FAR_MILES) {
       html += `<div class="gate"><span>&#9888;</span><span><strong>The closest listed Concentra or CareNow is about ${Math.round(evals[0].miles)} miles away.</strong> Search Maps for a closer clinic, or ask your DM or HR for a local provider.</span></div>`;
@@ -1656,8 +1669,20 @@ function render() {
         <div class="phase-label pre">Step 2 of 4 — Before the Conversation</div>
         <h2>CORROBORATE — Get a second manager.</h2>
         <p class="lead">A second manager or supervisor must independently observe the employee. This is critical for an objective position — and it is required before you proceed.</p>
-        <div class="field"><label>Second Manager / Witness Name</label><input type="text" id="f-witness" value="${esc(S.data.witness)}" placeholder="First and last name"></div>
-        <div class="field"><label>Witness observations — what they saw, smelled, or heard (their own words)</label><textarea id="f-witnessObs" placeholder="What the second manager saw, smelled, or heard.">${esc(S.data.witnessObs)}</textarea></div>
+        <div class="field"><label>Second manager's name</label><input type="text" id="f-witness" value="${esc(S.data.witness)}" placeholder="First and last name"></div>
+        <div class="field"><label>What the second manager saw, smelled, or heard (their own words)</label><textarea id="f-witnessObs" placeholder="What the second manager saw, smelled, or heard.">${esc(S.data.witnessObs)}</textarea></div>
+        <div class="ack-box">
+          <div class="ack-title">Second manager confirms</div>
+          <p>Hand this device to the second manager. They read the notes above, then type their own full name and tick the box. This shows the observations are theirs, not only what you wrote down.</p>
+          <div class="field" style="margin-bottom:10px;"><label>Second manager: type your full name</label><input type="text" id="f-witnessConfirm" value="${esc(S.data.witnessConfirmName)}" placeholder="Your full name" autocomplete="off"></div>
+          <label class="ack-item"><input type="checkbox" id="f-witnessAck"${S.data.witnessConfirmed ? ' checked' : ''}><span>I personally observed ${name()}, and the notes above accurately reflect what I saw, smelled, or heard.</span></label>
+        </div>
+        <div class="ack-box">
+          <div class="ack-title">Who will witness the conversation?</div>
+          <label class="ack-item"><input type="radio" name="convSame" value="yes"${S.data.convWitnessSame === 'yes' ? ' checked' : ''} onchange="toggleConvWitness()"><span>The same second manager</span></label>
+          <label class="ack-item"><input type="radio" name="convSame" value="no"${S.data.convWitnessSame === 'no' ? ' checked' : ''} onchange="toggleConvWitness()"><span>A different manager</span></label>
+          <div class="field" id="convWitnessBox" style="margin-bottom:0;${S.data.convWitnessSame === 'no' ? '' : ' display:none;'}"><label>Conversation witness's name</label><input type="text" id="f-convWitness" value="${S.data.convWitnessSame === 'no' ? esc(S.data.convWitnessName) : ''}" placeholder="First and last name"></div>
+        </div>
         <div class="gate"><span>&#9888;</span><span><strong>Do not proceed alone.</strong> The conversation must happen with a managerial witness present. If your location has union-represented employees, a steward should be present if possible.</span></div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="saveCorroborate()">Second Manager Has Observed — Next Step <span class="arrow">&#8594;</span></button>
@@ -1670,6 +1695,7 @@ function render() {
         <div class="phase-label pre">Step 3 of 4 — Before the Conversation</div>
         <h2>NOTIFY — Contact your DM or HR first.</h2>
         <p class="lead">You must contact your District Manager or HR <strong>before</strong> engaging the employee — and again after. Do not have the conversation until it is agreed to proceed with the reasonable suspicion process.</p>
+        <div class="gate"><span>&#128196;</span><span><strong>Paperwork.</strong> If the employee agrees to test, you will need paperwork (for example, the Authorization to Treat form). Ask your DM or HR which paperwork you need, and have it printed and ready before the conversation.</span></div>
         <div class="field"><label>Who did you contact? — Name</label><input type="text" id="f-dmName" value="${esc(S.data.dmName)}" placeholder="First and last name" autocomplete="off"></div>
         <div class="field"><label>Their role</label><input type="text" id="f-dmRole" value="${esc(S.data.dmRole)}" placeholder="e.g. District Manager, HR Business Partner" autocomplete="off"></div>
         <div class="btn-row">
@@ -1702,11 +1728,12 @@ function render() {
       <div class="card">
         <div class="path-tag green">GREEN PATH — TESTING</div>
         <h2>Select the testing facility and confirm it is open.</h2>
-        <p class="lead">${name()} has agreed to test. Choose where you are sending them, then confirm the facility is open and able to receive them. This determines whether you test now or arrange morning testing.</p>
+        <p class="lead">${name()} has agreed to test. Choose where you are taking them, then confirm the facility is open and able to receive them. This determines whether you test now or arrange morning testing.</p>
         ${siteSelectorHTML('Testing facility')}
+        <p class="lead" style="font-size:13px; margin:0 0 10px;">Pick a site and confirm it is open, then use the first button. If nothing is open right now, use the second one. You do not need to pick a site for that. You will choose the site, date and time together on the next screen.</p>
         <div class="btn-row">
           <button class="btn btn-green" onclick="saveFacility('open')">&#10003;&nbsp; Yes — Facility Is Open Now <span class="arrow">&#8594;</span></button>
-          <button class="btn btn-neutral" onclick="saveFacility('closed')">&#128274;&nbsp; No — Facility Is Closed / After-Hours <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-neutral" onclick="saveFacility('closed')">&#128274;&nbsp; No — Nothing Is Open Right Now / After-Hours <span class="arrow">&#8594;</span></button>
         </div>
         <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
       </div>`,
@@ -1717,7 +1744,7 @@ function render() {
         <div class="path-tag green">GREEN PATH — AFTER-HOURS PROTOCOL</div>
         <h2>Facility closed: schedule the test for the next day and get them home safely.</h2>
         <p class="lead">The facility is closed, but ${name()} still cannot remain at work and cannot drive themselves. Follow this protocol exactly:</p>
-        <div class="gate" style="margin-bottom:6px;"><span>1.</span><span><strong>Schedule the test for the next day.</strong> Choose the site below, call to book the appointment for the next day it is open (check the hours shown), and record the date and time.</span></div>
+        <div class="gate" style="margin-bottom:6px;"><span>1.</span><span><strong>Schedule the test for the next day.</strong> Choose the site below, call to book the appointment for the next day it is open (check the hours shown), and record the date and time. Ask the employee whether one of the listed sites is more convenient for them.</span></div>
         <div class="gate" style="margin-bottom:6px;"><span>2.</span><span><strong>Provide safe transportation home now.</strong> Choose how they get home below and record it. The employee does not drive.</span></div>
         <div class="gate" style="margin-bottom:6px;"><span>3.</span><span><strong>Instruct the employee to report to the scheduled appointment.</strong> Be specific about where and when.</span></div>
         <div class="gate" style="margin-bottom:6px;"><span>4.</span><span><strong>The employee must provide proof of testing before returning to work.</strong> They do not resume their duties until that proof is received.</span></div>
@@ -1726,6 +1753,15 @@ function render() {
         ${ahApptHTML()}
 
         ${rideHomeHTML()}
+
+        <div class="ack-box">
+          <div class="ack-title">Before they leave — confirm all three</div>
+          ${ackItemsHTML([
+            ['ahAckPaper', '<strong>I gave the employee the printed paperwork</strong> the facility will need.<small>For example, the Authorization to Treat form.</small>'],
+            ['ahAckWhere', '<strong>I told the employee exactly where and when to report.</strong>'],
+            ['ahAckProof', '<strong>I told the employee they must provide proof of testing</strong> before returning to work.']
+          ])}
+        </div>
 
         <p class="lead" style="margin-bottom:8px; margin-top:14px;"><strong>Does ${name()} agree to this and leave safely?</strong></p>
         <div class="btn-row">
@@ -1741,14 +1777,16 @@ function render() {
       <div class="card">
         <div class="path-tag green">GREEN PATH — TESTING</div>
         <h2>Transport to the testing facility.</h2>
-        <p class="lead">The employee has agreed to test. Three requirements before you leave:</p>
-        <div class="btn-row" style="margin-top:4px;">
-          <div class="gate" style="margin-bottom:6px;"><span>1.</span><span><strong>Print the Authorization to Treat form and take it with you.</strong> The facility needs it.</span></div>
-          <div class="gate" style="margin-bottom:6px;"><span>2.</span><span><strong>Keep the associate CLOCKED IN.</strong> They remain on the clock through the entire testing process.</span></div>
-          <div class="gate" style="margin-bottom:6px;"><span>3.</span><span><strong>A manager drives.</strong> The employee does not drive themselves — to the facility or anywhere else.</span></div>
+        <p class="lead">The employee has agreed to test. Confirm all three before you leave:</p>
+        <div class="ack-box">
+          ${ackItemsHTML([
+            ['ackPaper', '<strong>Paperwork previously printed and prepared.</strong> Have it with you before you go.<small>The facility needs it (for example, the Authorization to Treat form).</small>'],
+            ['ackClock', '<strong>Keep the associate CLOCKED IN.</strong> They remain on the clock through the entire testing process.'],
+            ['ackDriver', '<strong>A manager drives.</strong> The employee does not drive themselves — to the facility or anywhere else.']
+          ])}
         </div>
         <div class="btn-row">
-          <button class="btn btn-green" onclick="logEvent('Departed for testing facility. Authorization to Treat form in hand; employee clocked in; manager driving.'); pushState('green-route')">En Route to Facility <span class="arrow">&#8594;</span></button>
+          <button class="btn btn-green" onclick="goEnRoute()">En Route to Facility <span class="arrow">&#8594;</span></button>
         </div>
         <div class="undo-row"><button class="undo-btn" onclick="undo()">&#8617; Undo last step</button></div>
       </div>`,
@@ -1873,7 +1911,8 @@ function render() {
         ${recordHTML()}
         <div class="sig-row">
           <div class="sig-block"><div class="sig-line"></div><div class="sig-label">Initiating Manager Signature / Date</div></div>
-          <div class="sig-block"><div class="sig-line"></div><div class="sig-label">Witnessing Manager Signature / Date</div></div>
+          <div class="sig-block"><div class="sig-line"></div><div class="sig-label">${S.data.convWitnessSame === 'no' ? 'Corroborating Manager Signature / Date' : 'Corroborating Manager and Conversation Witness Signature / Date'}</div></div>
+          ${S.data.convWitnessSame === 'no' ? '<div class="sig-block"><div class="sig-line"></div><div class="sig-label">Conversation Witness Signature / Date</div></div>' : ''}
         </div>
       </div>
 
@@ -1914,12 +1953,30 @@ function saveObserve() {
   pushState('corroborate');
 }
 
+function toggleConvWitness() {
+  const r = document.querySelector('input[name=convSame]:checked'), box = document.getElementById('convWitnessBox');
+  if (box) box.style.display = (r && r.value === 'no') ? '' : 'none';
+}
 function saveCorroborate() {
-  S.data.witness = document.getElementById('f-witness').value.trim();
-  S.data.witnessObs = document.getElementById('f-witnessObs').value.trim();
+  const g = id => document.getElementById(id);
+  const norm = x => x.replace(/\s+/g, ' ').trim().toLowerCase();
+  S.data.witness = g('f-witness').value.trim();
+  S.data.witnessObs = g('f-witnessObs').value.trim();
+  const cName = g('f-witnessConfirm').value.trim(), cAck = g('f-witnessAck').checked;
+  const same = (document.querySelector('input[name=convSame]:checked') || {}).value || '';
+  const convName = g('f-convWitness') ? g('f-convWitness').value.trim() : '';
   if (!S.data.witness) { alert('A second manager must observe before you proceed. Enter their name.'); return; }
   if (!S.data.witnessObs) { alert('Document what the second manager saw, smelled, or heard before you proceed.'); return; }
-  logEvent('Second manager corroborated: ' + S.data.witness + ' independently observed the employee.' + (S.data.witnessObs ? ' Witness notes: ' + S.data.witnessObs : ''));
+  if (!cName) { alert('Hand the device to the second manager. They must type their full name to confirm the notes.'); return; }
+  if (norm(cName) !== norm(S.data.witness)) { alert('The name typed for the confirmation does not match the second manager\'s name entered above. Make them match.'); return; }
+  if (!cAck) { alert('The second manager must tick the box to confirm they observed the employee and that the notes are accurate.'); return; }
+  if (!same) { alert('Choose who will witness the conversation.'); return; }
+  if (same === 'no' && !convName) { alert('Enter the name of the manager who will witness the conversation.'); return; }
+  S.data.witnessConfirmName = cName; S.data.witnessConfirmed = true; S.data.witnessConfirmISO = new Date().toISOString();
+  S.data.convWitnessSame = same; S.data.convWitnessName = same === 'yes' ? S.data.witness : convName;
+  logEvent('Second manager corroborated: ' + S.data.witness + ' independently observed the employee. Observations: ' + S.data.witnessObs);
+  logEvent('Corroboration confirmed on the device by ' + S.data.witness + ' (typed name and acknowledgment). Notes entered by ' + S.data.manager + '.');
+  logEvent('Conversation witness: ' + S.data.convWitnessName + (same === 'yes' ? ' (the same second manager).' : '.'));
   pushState('notify');
 }
 
@@ -1953,15 +2010,13 @@ function goRed(from, msg) {
 }
 
 // ============================================================
-// SAFE RIDE HOME — five ways, one is recorded every time
+// SAFE RIDE HOME — four ways, one is recorded every time
 // ============================================================
 const RIDE_OPTIONS = [
   { key: 'manager',   label: 'A manager drives them home',
     phrase: 'a manager drove the employee home' },
   { key: 'rideshare', label: 'A rideshare, arranged and paid for by the manager', sub: 'The company reimburses the manager for the cost.',
     phrase: 'a rideshare was arranged by the manager (company reimburses the cost)' },
-  { key: 'colleague', label: 'A colleague drives them home, with manager approval', sub: 'Manager approval is required. Only if the colleague is willing. Do not pressure anyone to drive.',
-    detail: 'Colleague’s name', phrase: 'a colleague drove the employee home with manager approval', sep: ' — ' },
   { key: 'pickup',    label: 'The employee calls someone to pick them up',
     detail: 'Who is picking them up (name and relationship)', phrase: 'the employee called someone to pick them up', sep: ' — ' },
   { key: 'emergency', label: 'We call their emergency contact to pick them up', sub: 'Use the emergency contact on the employee’s file.',
@@ -2030,26 +2085,67 @@ function saveRedFinal() {
   pushState('notify-after', snap);
 }
 
+function goEnRoute() {
+  const d = S.data;
+  if (!(d.ackPaper && d.ackClock && d.ackDriver)) { alert('Tick all three items before you leave.'); return; }
+  logEvent('Departed for testing facility. Confirmed before leaving: paperwork previously printed and in hand; employee clocked in; manager driving.');
+  pushState('green-route');
+}
+
+// Closest listed sites to the chosen store, with their status right now (same logic the site cards use).
+function nearEvalsNow() {
+  const store = currentStore();
+  const tz = store ? store.tz : STORE_TZ_DEFAULT;
+  const near = store ? (STORE_NEAREST[String(Number(store.n))] || []).filter(n => siteById(n[0])).sort((a, b) => a[1] - b[1]) : [];
+  const evals = near.map(n => { const x = siteById(n[0]), est = !!n[2]; return { x, miles: n[1], est, st: siteStatus(x, tz, travelMin(n[1], est)) }; });
+  const recIdx = evals.findIndex(e => e.st.k === 'open' && e.st.openAtArrival && e.st.leftAtArrival >= TEST_BUFFER_MIN);
+  return { store, evals, recIdx };
+}
+
 function saveFacility(status) {
   captureSiteFields();
-  if (!siteValid()) return;
-  if (S.data.siteStore === 'other') logEvent('Store not on the provider list: ' + S.data.siteStoreOther + '.');
-  logEvent('Testing facility selected: ' + siteText(siteInfo()) + '.');
   if (status === 'open') {
+    if (!siteValid()) return;
+    if (S.data.siteStore === 'other') logEvent('Store not on the provider list: ' + S.data.siteStoreOther + '.');
+    logEvent('Testing facility selected: ' + siteText(siteInfo()) + '.');
     logEvent('Testing facility confirmed open and available. Proceeding to transport.');
     pushState('green-prep');
-  } else {
-    logEvent('Testing facility closed / after-hours. Proceeding to after-hours protocol.');
-    pushState('after-hours');
+    return;
   }
+  // Nothing open right now. No site has to be chosen yet: the site, date and time are chosen together on the next screen.
+  const picked = siteInfo();
+  if (S.data.siteStore === 'other') logEvent('Store not on the provider list: ' + S.data.siteStoreOther + '.');
+  if (picked) {
+    logEvent('Testing facility selected: ' + siteText(picked) + '.');
+    logEvent('Testing facility closed / after-hours. Proceeding to after-hours protocol.');
+  } else {
+    const ne = nearEvalsNow();
+    if (ne.recIdx >= 0) {
+      const r = ne.evals[ne.recIdx];
+      if (!confirm('The listed hours show ' + r.x.name + ', ' + r.x.address + ' is open long enough to test right now.\n\nCall to confirm. If they can take the employee, press Cancel and select it. If nothing can take the employee now, press OK to continue.')) return;
+    }
+    if (ne.recIdx >= 0) {
+      const r = ne.evals[ne.recIdx];
+      logEvent('No testing site selected. The listed hours showed ' + r.x.name + ', ' + r.x.address + ' as open long enough to test now, but the manager determined no site could take the employee now. Proceeding to after-hours protocol; the site, date and time are chosen next.');
+    } else if (ne.store && ne.evals.length) {
+      const c = ne.evals[0];
+      logEvent('No testing site selected. The closest listed sites to Store ' + ne.store.n + ' were checked against their listed hours and none is open long enough to test now (closest: ' + c.x.name + ', ' + c.x.address + ' — ' + statusInfo(c.st).text + '). Proceeding to after-hours protocol; the site, date and time are chosen next.');
+    } else {
+      logEvent('No testing site selected. No site is open and available right now. Proceeding to after-hours protocol; the site, date and time are chosen next.');
+    }
+  }
+  pushState('after-hours');
 }
 
 function saveAfterHours(result) {
   captureSiteFields();
-  if (!siteValid()) return;
+  // The site is required only when the employee agrees and goes home with a morning appointment.
+  // A refusal is never blocked by a missing site.
+  if (result === 'safe' && !siteValid()) return;
   // The appointment and the ride are required only when the employee agrees and goes home with morning
   // instructions. A refusal is never blocked by a missing appointment; it is recorded as it happened.
   if (result === 'safe') {
+    if (!(S.data.ahAckPaper && S.data.ahAckWhere && S.data.ahAckProof)) { alert('Tick all three items under "Before they leave" before you continue.'); return; }
     if (!S.data.ahTime) { alert('Choose the scheduled appointment date and time before proceeding.'); return; }
     const chk = ahChecks();
     const hard = chk.find(c => c.level === 'hard');
@@ -2062,9 +2158,10 @@ function saveAfterHours(result) {
   const snap = snapshot();
   S.data.afterHours = true;
   const instr = S.data.ahTime
-    ? 'After-hours protocol: facility closed. Test scheduled for ' + S.data.ahTime + ' — ' + siteText(si) + '. Employee instructed to report then and provide proof of testing before returning to work.'
+    ? 'After-hours protocol: facility closed. Test scheduled for ' + S.data.ahTime + ' — ' + (si ? siteText(si) : 'no site selected') + '. Employee instructed to report then and provide proof of testing before returning to work.'
     : 'After-hours protocol: facility closed.';
   if (result === 'safe') {
+    logEvent('Before the employee left: paperwork given to the employee; told exactly where and when to report; told proof of testing is required before returning to work.');
     logEvent(instr + ' Employee sent home safely. Safe ride home: ' + rideText() + '. Employee did not drive.');
     S.data.outcome = 'After-hours: facility closed. Sent home safely (' + rideText() + '). Test scheduled for ' + S.data.ahTime + ' at ' + si.name + '; must provide proof of testing before returning to work.';
     pushState('notify-after', snap);
@@ -2120,6 +2217,9 @@ function recordModel() {
     employee: employeeFull() + (d.employeeId ? ' (ID ' + d.employeeId + ')' : ''),
     manager: d.manager || '—',
     witness: d.witness || '—',
+    witnessConfirm: d.witnessConfirmed ? 'Typed name and acknowledgment on the device, ' + fmtDT(d.witnessConfirmISO) : 'Not recorded',
+    corroNote: d.witnessConfirmed ? 'Notes entered by ' + (d.manager || '—') + '; confirmed by ' + d.witness + ' on the device (typed name and acknowledgment) on ' + fmtDT(d.witnessConfirmISO) + '.' : '',
+    convWitness: d.convWitnessName ? d.convWitnessName + (d.convWitnessSame === 'yes' ? ' (same as the corroborating manager)' : '') : (d.witness || '—'),
     dm: d.dmContact || '—',
     response: d.path ? responseLabel(d.path.toUpperCase()) : '—',
     sequence: S.pathHistory.length > 1 ? S.pathHistory.map(responseLabel).join(' → ') : '',
@@ -2161,7 +2261,9 @@ function recordHTML() {
   if (m.regionDistrict) rows += kv('Region / District', m.regionDistrict);
   rows += kv('Employee', m.employee);
   rows += kv('Initiating Manager', m.manager);
-  rows += kv('Witnessing Manager', m.witness);
+  rows += kv('Corroborating Manager (second manager)', m.witness);
+  rows += kv('Corroboration Confirmed', m.witnessConfirm);
+  rows += kv('Conversation Witness', m.convWitness);
   rows += kv('DM/HR Contacted Before Conversation', m.dm);
   rows += kv('Employee Response to Testing Request', m.response);
   if (m.sequence) rows += kv('Sequence of Responses', m.sequence);
@@ -2182,7 +2284,7 @@ function recordHTML() {
     ? '<ul style="' + p + 'margin:0 0 8px 22px;padding:0;">' + m.signs.map(s => '<li style="' + p + 'margin:0 0 2px 0;">' + e(s) + '</li>').join('') + '</ul>'
     : '<p style="' + p + '">None selected from the checklist; see notes below.</p>';
   if (m.otherObs) html += '<p style="' + p + '"><strong>Additional notes:</strong> ' + br(m.otherObs) + '</p>';
-  html += '<p style="' + p + '"><strong>Corroboration:</strong> ' + e(m.witness) + ' (second manager) independently observed the employee.' + (m.witnessObs ? ' Witness notes: ' + br(m.witnessObs) : '') + '</p>';
+  html += '<p style="' + p + '"><strong>Corroboration:</strong> ' + e(m.witness) + ' (second manager) independently observed the employee.' + (m.witnessObs ? ' Observations as recorded: ' + br(m.witnessObs) : '') + (m.corroNote ? ' ' + e(m.corroNote) : '') + '</p>';
 
   html += '<p style="' + h + '">Chronological Record of Actions</p>';
   if (m.reversals) html += '<p style="' + p + '">Entries marked [Reversed] were undone by the manager during the process. They are kept so the record is complete.</p>';
@@ -2211,7 +2313,9 @@ function recordText() {
   if (m.regionDistrict) row('Region / District', m.regionDistrict);
   row('Employee', m.employee);
   row('Initiating Manager', m.manager);
-  row('Witnessing Manager', m.witness);
+  row('Corroborating Manager (second manager)', m.witness);
+  row('Corroboration Confirmed', m.witnessConfirm);
+  row('Conversation Witness', m.convWitness);
   row('DM/HR Contacted Before Conversation', m.dm);
   row('Employee Response to Testing Request', m.response);
   if (m.sequence) row('Sequence of Responses', m.sequence);
@@ -2228,7 +2332,7 @@ function recordText() {
   L.push('Signs observed by ' + m.manager + ' (initiating manager):');
   if (m.signs.length) m.signs.forEach(s => L.push('  - ' + s)); else L.push('  None selected from the checklist; see notes below.');
   if (m.otherObs) L.push('Additional notes: ' + m.otherObs);
-  L.push('Corroboration: ' + m.witness + ' (second manager) independently observed the employee.' + (m.witnessObs ? ' Witness notes: ' + m.witnessObs : ''));
+  L.push('Corroboration: ' + m.witness + ' (second manager) independently observed the employee.' + (m.witnessObs ? ' Observations as recorded: ' + m.witnessObs : '') + (m.corroNote ? ' ' + m.corroNote : ''));
   L.push('', 'CHRONOLOGICAL RECORD OF ACTIONS', '-'.repeat(40));
   if (m.reversals) L.push('Entries marked [REVERSED] were undone by the manager during the process. They are kept so the record is complete.');
   m.log.forEach(r => L.push('[' + r.when + '] ' + (r.reversed ? '[REVERSED] ' : '') + r.text));
