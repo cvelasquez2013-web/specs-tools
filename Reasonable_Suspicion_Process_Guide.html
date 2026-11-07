@@ -2284,7 +2284,7 @@ function recordHTML() {
     ? '<ul style="' + p + 'margin:0 0 8px 22px;padding:0;">' + m.signs.map(s => '<li style="' + p + 'margin:0 0 2px 0;">' + e(s) + '</li>').join('') + '</ul>'
     : '<p style="' + p + '">None selected from the checklist; see notes below.</p>';
   if (m.otherObs) html += '<p style="' + p + '"><strong>Additional notes:</strong> ' + br(m.otherObs) + '</p>';
-  html += '<p style="' + p + '"><strong>Corroboration:</strong> ' + e(m.witness) + ' (second manager) independently observed the employee.' + (m.witnessObs ? ' Observations as recorded: ' + br(m.witnessObs) : '') + (m.corroNote ? ' ' + e(m.corroNote) : '') + '</p>';
+  html += '<p style="' + p + '"><strong>Corroboration:</strong> ' + e(m.witness) + ' (second manager) independently observed the employee.' + (m.witnessObs ? ' Observations as recorded: ' + br(m.witnessObs) + (/[.!?]\s*$/.test(m.witnessObs) ? '' : '.') : '') + (m.corroNote ? ' ' + e(m.corroNote) : '') + '</p>';
 
   html += '<p style="' + h + '">Chronological Record of Actions</p>';
   if (m.reversals) html += '<p style="' + p + '">Entries marked [Reversed] were undone by the manager during the process. They are kept so the record is complete.</p>';
@@ -2332,7 +2332,7 @@ function recordText() {
   L.push('Signs observed by ' + m.manager + ' (initiating manager):');
   if (m.signs.length) m.signs.forEach(s => L.push('  - ' + s)); else L.push('  None selected from the checklist; see notes below.');
   if (m.otherObs) L.push('Additional notes: ' + m.otherObs);
-  L.push('Corroboration: ' + m.witness + ' (second manager) independently observed the employee.' + (m.witnessObs ? ' Observations as recorded: ' + m.witnessObs : '') + (m.corroNote ? ' ' + m.corroNote : ''));
+  L.push('Corroboration: ' + m.witness + ' (second manager) independently observed the employee.' + (m.witnessObs ? ' Observations as recorded: ' + m.witnessObs + (/[.!?]\s*$/.test(m.witnessObs) ? '' : '.') : '') + (m.corroNote ? ' ' + m.corroNote : ''));
   L.push('', 'CHRONOLOGICAL RECORD OF ACTIONS', '-'.repeat(40));
   if (m.reversals) L.push('Entries marked [REVERSED] were undone by the manager during the process. They are kept so the record is complete.');
   m.log.forEach(r => L.push('[' + r.when + '] ' + (r.reversed ? '[REVERSED] ' : '') + r.text));
@@ -2496,9 +2496,14 @@ function buildRecordPDF() {
   }
 
   // Signature lines
-  need(80); y -= 26;
+  // Same labels as the on-screen record: one combined line when the corroborating manager also witnessed the conversation, otherwise a third line.
+  const sigApart = S.data.convWitnessSame === 'no';
+  const sigRight = sigApart ? ['CORROBORATING MANAGER SIGNATURE / DATE'] : ['CORROBORATING MANAGER AND', 'CONVERSATION WITNESS SIGNATURE / DATE'];
+  need(sigApart ? 130 : 90); y -= 26;
   rule(M, M + 215, y, 0.7); rule(PW - M - 215, PW - M, y, 0.7); y -= 11;
-  text('INITIATING MANAGER SIGNATURE / DATE', M, 7.5, false); text('WITNESSING MANAGER SIGNATURE / DATE', PW - M - 215, 7.5, false);
+  text('INITIATING MANAGER SIGNATURE / DATE', M, 7.5, false); text(sigRight[0], PW - M - 215, 7.5, false);
+  if (sigRight[1]) { y -= 10; text(sigRight[1], PW - M - 215, 7.5, false); }
+  if (sigApart) { y -= 40; rule(M, M + 215, y, 0.7); y -= 11; text('CONVERSATION WITNESS SIGNATURE / DATE', M, 7.5, false); }
 
   // Footers (need the page count, so they are added last)
   const total = pages.length, foot = pdfClean('Confidential — Management and HR use only  |  ' + employeeLastFirst() + '  |  Page ');
