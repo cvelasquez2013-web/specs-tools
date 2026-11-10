@@ -451,8 +451,9 @@ function formURL() { try { return new URL(FORM_FILE, location.href).href; } catc
 function formMailto() {
   return 'mailto:?subject=' + encodeURIComponent(FORM_TITLE) + '&body=' + encodeURIComponent('Print this form and have it ready before you start the conversation.\n\nIf the link below is not clickable, copy it and paste it into your web browser:\n\n' + formURL());
 }
-// On a phone the PDF file itself is shared (Mail, Messages, Print and so on). The file is fetched ahead of time so the share
-// happens inside the tap. Anywhere else, the link opens the email app with the form's web address ready to send.
+// Wherever the browser can share files (phones, and computers with Edge, Safari or recent Chrome) the PDF file itself is shared
+// (Mail, Outlook, Messages, Print and so on). The file is fetched ahead of time so the share happens inside the tap.
+// Anywhere else, the link opens the email app with the form's web address ready to send.
 function prefetchForm() {
   if (formFetch || typeof fetch !== 'function') return;
   formFetch = true;
@@ -464,9 +465,8 @@ function isPhone() {
   try { return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)); } catch (e) { return false; }
 }
 function emailForm(ev) {
-  const mobile = isPhone();
   try {
-    if (mobile && formObj && navigator.canShare && navigator.canShare({ files: [formObj] })) {
+    if (formObj && navigator.canShare && navigator.canShare({ files: [formObj] })) {
       ev.preventDefault();
       navigator.share({ files: [formObj], title: FORM_TITLE }).catch(err => { if (!err || err.name !== 'AbortError') location.href = formMailto(); });
       return false;
