@@ -125,6 +125,9 @@
   .ack-item { display: flex; align-items: flex-start; gap: 10px; background: white; border: 1.5px solid var(--gold-border); border-radius: 8px; padding: 11px 12px; margin-bottom: 8px; cursor: pointer; font-size: 14px; line-height: 1.4; color: var(--slate); }
   .ack-item input { width: 20px; height: 20px; accent-color: var(--green); margin-top: 1px; flex-shrink: 0; }
   .ack-item small { display: block; font-weight: 400; font-size: 12px; color: var(--mid); margin-top: 2px; }
+  .form-links { display: inline-block; margin-top: 4px; font-weight: 600; font-size: 13px; }
+  .form-links a { color: #1A5FB4; text-decoration: underline; }
+  .form-links .dot { color: var(--mid); margin: 0 6px; }
 
   /* Script display */
   .script-box { background: var(--charcoal); border-radius: 12px; padding: 20px 22px; margin: 14px 0; }
@@ -440,6 +443,38 @@ function ackItemsHTML(items) {
   return items.map(it => '<label class="ack-item"><input type="checkbox"' + (S.data[it[0]] ? ' checked' : '') + ' onchange="setAck(\'' + it[0] + '\', this.checked)"><span>' + it[1] + '</span></label>').join('');
 }
 function setAck(key, v) { S.data[key] = !!v; persist(); }
+
+// Authorization to Treat form: a PDF served next to this page. Managers can open or print it, or email it to themselves to print.
+const FORM_FILE = 'Authorization_to_Treat_Form.pdf', FORM_TITLE = 'Authorization to Treat form';
+let formObj = null, formFetch = false;
+function formURL() { try { return new URL(FORM_FILE, location.href).href; } catch (e) { return FORM_FILE; } }
+function formMailto() {
+  return 'mailto:?subject=' + encodeURIComponent(FORM_TITLE) + '&body=' + encodeURIComponent('Print this form and have it ready before you start the conversation:\n\n' + formURL());
+}
+// On a phone the PDF file itself is shared (Mail, Messages, Print and so on). The file is fetched ahead of time so the share
+// happens inside the tap. Anywhere else, the link opens the email app with the form's web address ready to send.
+function prefetchForm() {
+  if (formFetch || typeof fetch !== 'function') return;
+  formFetch = true;
+  try {
+    fetch(FORM_FILE).then(r => r.ok ? r.blob() : Promise.reject()).then(b => { formObj = new File([b], FORM_FILE, { type: 'application/pdf' }); }).catch(() => { formFetch = false; });
+  } catch (e) { formFetch = false; }
+}
+function emailForm(ev) {
+  const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  try {
+    if (mobile && formObj && navigator.canShare && navigator.canShare({ files: [formObj] })) {
+      ev.preventDefault();
+      navigator.share({ files: [formObj], title: FORM_TITLE }).catch(err => { if (!err || err.name !== 'AbortError') location.href = formMailto(); });
+      return false;
+    }
+  } catch (e) {}
+  return true; // falls through to the mailto link
+}
+function formLinksHTML() {
+  prefetchForm();
+  return '<span class="form-links"><a href="' + FORM_FILE + '" target="_blank" rel="noopener">Open or print the form</a><span class="dot">&middot;</span><a href="' + formMailto().replace(/&/g, '&amp;') + '" onclick="return emailForm(event)">Email it to me</a></span>';
+}
 
 // ============================================================
 // STORES AND APPROVED TESTING SITES
@@ -1695,7 +1730,7 @@ function render() {
         <div class="phase-label pre">Step 3 of 4 — Before the Conversation</div>
         <h2>NOTIFY — Contact your DM or HR first.</h2>
         <p class="lead">You must contact your District Manager or HR <strong>before</strong> engaging the employee — and again after. Do not have the conversation until it is agreed to proceed with the reasonable suspicion process.</p>
-        <div class="gate"><span>&#128196;</span><span><strong>Paperwork.</strong> If the employee agrees to test, you will need paperwork (for example, the Authorization to Treat form). Ask your DM or HR which paperwork you need, and have it printed and ready before the conversation.</span></div>
+        <div class="gate"><span>&#128196;</span><span><strong>Paperwork.</strong> If the employee agrees to test, you will need the Authorization to Treat form. Please print it, or email it to yourself to print, so it is ready before you start the conversation. If you are not sure you need anything else, ask your DM or HR.<br>${formLinksHTML()}</span></div>
         <div class="field"><label>Who did you contact? — Name</label><input type="text" id="f-dmName" value="${esc(S.data.dmName)}" placeholder="First and last name" autocomplete="off"></div>
         <div class="field"><label>Their role</label><input type="text" id="f-dmRole" value="${esc(S.data.dmRole)}" placeholder="e.g. District Manager, HR Business Partner" autocomplete="off"></div>
         <div class="btn-row">
@@ -1757,7 +1792,7 @@ function render() {
         <div class="ack-box">
           <div class="ack-title">Before they leave — confirm all three</div>
           ${ackItemsHTML([
-            ['ahAckPaper', '<strong>I gave the employee the printed paperwork</strong> the facility will need.<small>For example, the Authorization to Treat form.</small>'],
+            ['ahAckPaper', '<strong>I gave the employee the printed paperwork</strong> the facility will need.<small>The Authorization to Treat form.<br>' + formLinksHTML() + '</small>'],
             ['ahAckWhere', '<strong>I told the employee exactly where and when to report.</strong>'],
             ['ahAckProof', '<strong>I told the employee they must provide proof of testing</strong> before returning to work.']
           ])}
@@ -1780,7 +1815,7 @@ function render() {
         <p class="lead">The employee has agreed to test. Confirm all three before you leave:</p>
         <div class="ack-box">
           ${ackItemsHTML([
-            ['ackPaper', '<strong>Paperwork previously printed and prepared.</strong> Have it with you before you go.<small>The facility needs it (for example, the Authorization to Treat form).</small>'],
+            ['ackPaper', '<strong>Paperwork previously printed and prepared.</strong> Have it with you before you go.<small>The facility needs the Authorization to Treat form.<br>' + formLinksHTML() + '</small>'],
             ['ackClock', '<strong>Keep the associate CLOCKED IN.</strong> They remain on the clock through the entire testing process.'],
             ['ackDriver', '<strong>A manager drives.</strong> The employee does not drive themselves — to the facility or anywhere else.']
           ])}
