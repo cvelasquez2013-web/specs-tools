@@ -449,7 +449,7 @@ const FORM_FILE = 'Authorization_to_Treat_Form.pdf', FORM_TITLE = 'Authorization
 let formObj = null, formFetch = false;
 function formURL() { try { return new URL(FORM_FILE, location.href).href; } catch (e) { return FORM_FILE; } }
 function formMailto() {
-  return 'mailto:?subject=' + encodeURIComponent(FORM_TITLE) + '&body=' + encodeURIComponent('Print this form and have it ready before you start the conversation:\n\n' + formURL());
+  return 'mailto:?subject=' + encodeURIComponent(FORM_TITLE) + '&body=' + encodeURIComponent('Print this form and have it ready before you start the conversation.\n\nIf the link below is not clickable, copy it and paste it into your web browser:\n\n' + formURL());
 }
 // On a phone the PDF file itself is shared (Mail, Messages, Print and so on). The file is fetched ahead of time so the share
 // happens inside the tap. Anywhere else, the link opens the email app with the form's web address ready to send.
@@ -460,8 +460,11 @@ function prefetchForm() {
     fetch(FORM_FILE).then(r => r.ok ? r.blob() : Promise.reject()).then(b => { formObj = new File([b], FORM_FILE, { type: 'application/pdf' }); }).catch(() => { formFetch = false; });
   } catch (e) { formFetch = false; }
 }
+function isPhone() {
+  try { return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)); } catch (e) { return false; }
+}
 function emailForm(ev) {
-  const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  const mobile = isPhone();
   try {
     if (mobile && formObj && navigator.canShare && navigator.canShare({ files: [formObj] })) {
       ev.preventDefault();
@@ -471,9 +474,31 @@ function emailForm(ev) {
   } catch (e) {}
   return true; // falls through to the mailto link
 }
+// Copy the form's web address (computers). Always stays on the page; if the browser blocks copying, the address is shown instead.
+function copyFormLink(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  const el = ev && (ev.currentTarget || ev.target), url = formURL();
+  const say = t => { if (!el) return; const old = el.getAttribute('data-label') || el.textContent; el.setAttribute('data-label', old); el.textContent = t; setTimeout(() => { el.textContent = old; }, t === old ? 0 : 4000); };
+  const fallback = () => {
+    try {
+      const ta = document.createElement('textarea'); ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+      const okc = document.execCommand && document.execCommand('copy'); document.body.removeChild(ta);
+      say(okc ? 'Link copied' : url);
+    } catch (e) { say(url); }
+  };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(() => say('Link copied'), fallback);
+    else fallback();
+  } catch (e) { fallback(); }
+  return false;
+}
+// On a phone the form never opens as a page, because a home-screen app has no way back from a PDF. One link opens the share sheet
+// (Print, Mail, Messages, Save to Files). Computers get the open/print link, the email link and a copy-link button.
 function formLinksHTML() {
   prefetchForm();
-  return '<span class="form-links"><a href="' + FORM_FILE + '" target="_blank" rel="noopener">Open or print the form</a><span class="dot">&middot;</span><a href="' + formMailto().replace(/&/g, '&amp;') + '" onclick="return emailForm(event)">Email it to me</a></span>';
+  const mail = '<a href="' + formMailto().replace(/&/g, '&amp;') + '" onclick="return emailForm(event)">';
+  if (isPhone()) return '<span class="form-links">' + mail + 'Print or email the form</a></span>';
+  return '<span class="form-links"><a href="' + FORM_FILE + '" target="_blank" rel="noopener">Open or print the form</a><span class="dot">&middot;</span>' + mail + 'Email it to me</a><span class="dot">&middot;</span><a href="' + FORM_FILE + '" onclick="return copyFormLink(event)">Copy link</a></span>';
 }
 
 // ============================================================
